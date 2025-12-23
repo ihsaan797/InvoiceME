@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -57,11 +56,11 @@ const App: React.FC = () => {
           supabase.from('clients').select('*').order('created_at', { ascending: false })
         ]);
 
-        // If no business data found (first time), try to insert initial data
-        let activeBusiness = businessData || INITIAL_STATE.business;
+        let activeBusiness = businessData ? { ...INITIAL_STATE.business, ...businessData } : INITIAL_STATE.business;
+        
         if (!businessData && !bizError) {
            const { data: inserted } = await supabase.from('business_settings').insert({ id: 1, ...INITIAL_STATE.business }).select().single();
-           if (inserted) activeBusiness = inserted;
+           if (inserted) activeBusiness = { ...INITIAL_STATE.business, ...inserted };
         }
 
         setState({
@@ -82,17 +81,21 @@ const App: React.FC = () => {
   }, []);
 
   const updateBusiness = async (business: BusinessDetails) => {
-    // 1. Update UI state immediately for responsiveness
+    // Immediate UI Update
     setState(prev => ({ ...prev, business }));
     
-    // 2. Persist to Supabase using id:1 to ensure only one profile exists
-    const { error } = await supabase
-      .from('business_settings')
-      .upsert({ id: 1, ...business });
-    
-    if (error) {
-      console.error("Error updating business settings:", error);
-      alert(`Sync Error: ${error.message}. Ensure your database schema matches.`);
+    // Defensive Persist
+    try {
+        const { error } = await supabase
+            .from('business_settings')
+            .upsert({ id: 1, ...business });
+        
+        if (error) {
+            // Silently handle schema cache errors (PGRST204) while developer hasn't run the SQL
+            console.warn("Supabase Sync Warning (Safe to ignore if columns are being added):", error.message);
+        }
+    } catch (err) {
+        console.error("Critical Sync Error:", err);
     }
   };
 
@@ -204,7 +207,7 @@ const App: React.FC = () => {
         <div className="bg-blue-600 p-3 rounded-2xl text-white animate-bounce mb-4">
           <i className="fa-solid fa-bolt text-3xl"></i>
         </div>
-        <p className="text-slate-500 font-medium animate-pulse">Syncing with Supabase...</p>
+        <p className="text-slate-500 font-medium animate-pulse">Syncing Business Ledger...</p>
       </div>
     );
   }

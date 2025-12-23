@@ -1,9 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppState, TransactionType, DocumentType } from '../types';
-import { 
-  Tooltip, ResponsiveContainer, Cell, PieChart, Pie 
-} from 'recharts';
 import { GoogleGenAI } from "@google/genai";
 
 interface Props {
@@ -28,6 +25,8 @@ const Dashboard: React.FC<Props> = ({ state }) => {
 
   const profit = totalSales - totalExpenses;
   const profitMargin = totalSales > 0 ? Math.round((profit / totalSales) * 100) : 0;
+  
+  const expenseRatio = totalSales > 0 ? (totalExpenses / totalSales) * 100 : 0;
 
   // AI Business Insight Generation
   useEffect(() => {
@@ -37,7 +36,7 @@ const Dashboard: React.FC<Props> = ({ state }) => {
       try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const summary = transactions.map(t => `${t.type}: ${t.amount} (${t.category})`).slice(0, 10).join(', ');
-        const prompt = `Act as a high-level financial advisor. Based on these recent transactions for "${business.name}": [${summary}]. Total Sales: ${totalSales}, Total Expenses: ${totalExpenses}. Give a 2-sentence professional strategic advice. Be concise.`;
+        const prompt = `Act as a high-level financial advisor for "${business.name}". Based on these transactions: [${summary}]. Total Revenue: ${totalSales}, Total Expenses: ${totalExpenses}. Provide a 2-sentence executive strategic insight.`;
         
         const response = await ai.models.generateContent({
           model: 'gemini-3-flash-preview',
@@ -66,20 +65,18 @@ const Dashboard: React.FC<Props> = ({ state }) => {
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            Dashboard <span className="text-blue-600 font-light">/ Overview</span>
+            Business <span className="text-blue-600 font-light">/ Control</span>
           </h1>
-          <p className="text-slate-500 mt-2 font-medium">Monitoring the financial health of <span className="text-slate-900 font-bold">{business.name}</span>.</p>
+          <p className="text-slate-500 mt-2 font-medium">Real-time fiscal monitoring for <span className="text-slate-900 font-bold">{business.name}</span>.</p>
         </div>
         
-        <div className="flex items-center gap-3">
-           <div className="bg-white border border-slate-200 px-4 py-2.5 rounded-2xl flex items-center gap-3 shadow-sm">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Live Sync: Active</span>
-           </div>
+        <div className="bg-white border border-slate-200 px-5 py-3 rounded-2xl flex items-center gap-3 shadow-sm">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+            <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Global Ledger Synced</span>
         </div>
       </div>
 
-      {/* Stats Cards - Premium Bento Style */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { label: 'Revenue', value: totalSales, color: 'blue', icon: 'fa-sack-dollar' },
@@ -99,110 +96,122 @@ const Dashboard: React.FC<Props> = ({ state }) => {
         ))}
       </div>
 
-      {/* Main Analysis Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Main Analysis Area - Executive Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Smart Insights Panel */}
-        <div className="bg-slate-900 rounded-[3rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-blue-900/20 flex flex-col justify-center min-h-[300px]">
-          <div className="absolute top-0 right-0 p-8 opacity-10">
-            <i className="fa-solid fa-wand-magic-sparkles text-8xl"></i>
+        <div className="lg:col-span-2 bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-blue-900/20 flex flex-col justify-center min-h-[350px]">
+          <div className="absolute top-0 right-0 p-12 opacity-10">
+            <i className="fa-solid fa-wand-magic-sparkles text-9xl"></i>
           </div>
-          <div className="relative z-10 space-y-6">
-            <div className="flex items-center gap-2">
-              <span className="bg-blue-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">AI Intelligence</span>
+          <div className="relative z-10 space-y-8">
+            <div className="flex items-center gap-3">
+              <span className="bg-blue-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">AI Intelligence</span>
+              <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest tracking-widest">Analytical Core</span>
             </div>
-            <h4 className="text-3xl font-black leading-tight tracking-tight">Smart Business Insights</h4>
+            <h4 className="text-4xl md:text-5xl font-black leading-tight tracking-tight">Financial Strategy <br/><span className="text-blue-500">Optimization</span></h4>
             {isLoadingInsight ? (
-              <div className="space-y-4 animate-pulse pt-2">
-                <div className="h-4 bg-slate-800 rounded-full w-full"></div>
-                <div className="h-4 bg-slate-800 rounded-full w-4/5"></div>
-                <div className="h-4 bg-slate-800 rounded-full w-3/4"></div>
+              <div className="space-y-4 animate-pulse pt-4">
+                <div className="h-5 bg-slate-800 rounded-full w-full"></div>
+                <div className="h-5 bg-slate-800 rounded-full w-4/5"></div>
+                <div className="h-5 bg-slate-800 rounded-full w-2/3"></div>
               </div>
             ) : aiInsight ? (
-              <p className="text-slate-300 text-lg font-medium leading-relaxed italic border-l-4 border-blue-500 pl-6 py-2">
+              <p className="text-slate-300 text-xl font-medium leading-relaxed italic border-l-4 border-blue-500 pl-8 py-2 max-w-3xl">
                 "{aiInsight}"
               </p>
             ) : (
-              <p className="text-slate-500 text-sm italic">Record more transactions to unlock AI-powered growth insights.</p>
+              <p className="text-slate-500 text-lg italic">Record more data points to unlock bespoke financial optimization strategies.</p>
             )}
           </div>
         </div>
 
-        {/* Profit Distribution */}
-        <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
-          <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">Capital Allocation</h4>
-          <div className="h-56 w-full flex items-center justify-center relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                    <Pie
-                        data={[{ name: 'Sales', value: totalSales || 1 }, { name: 'Expenses', value: totalExpenses || 0 }]}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={70}
-                        outerRadius={95}
-                        paddingAngle={10}
-                        dataKey="value"
-                        stroke="none"
-                    >
-                        <Cell fill="#2563eb" cornerRadius={12} />
-                        <Cell fill="#f43f5e" cornerRadius={12} />
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} 
-                    />
-                </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <p className="text-4xl font-black text-slate-900">{profitMargin}%</p>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Net Margin</p>
+        {/* Executive Liquidity Snapshot (No Charts) */}
+        <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm flex flex-col justify-between min-h-[350px]">
+          <div>
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Capital Health</h4>
+            <div className="space-y-10">
+              <div>
+                <div className="flex justify-between items-end mb-3">
+                  <p className="text-sm font-black text-slate-900">Revenue Utilization</p>
+                  <p className="text-xs font-bold text-slate-500">{Math.round(100 - expenseRatio)}% Saved</p>
+                </div>
+                <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-600 rounded-full transition-all duration-1000 ease-out" 
+                    style={{ width: `${Math.min(100, (totalSales / (totalSales + totalExpenses || 1)) * 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-end mb-3">
+                  <p className="text-sm font-black text-slate-900">Expense Burden</p>
+                  <p className="text-xs font-bold text-rose-500">{Math.round(expenseRatio)}% Ratio</p>
+                </div>
+                <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-rose-500 rounded-full transition-all duration-1000 ease-out" 
+                    style={{ width: `${Math.min(100, expenseRatio)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-slate-50">
+                 <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                      <p className={`text-sm font-black ${profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {profit >= 0 ? 'SOLVENT' : 'CAPITAL DEFICIT'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Efficiency</p>
+                       <p className="text-sm font-black text-slate-900">{profitMargin}% ROI</p>
+                    </div>
+                 </div>
+              </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4 w-full mt-8 max-w-sm">
-            <div className="bg-blue-50/50 p-5 rounded-3xl text-center border border-blue-100">
-              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Inflow</p>
-              <p className="text-xl font-black text-blue-700">
-                {Math.round((totalSales / (totalSales + totalExpenses || 1)) * 100)}%
-              </p>
-            </div>
-            <div className="bg-rose-50/50 p-5 rounded-3xl text-center border border-rose-100">
-              <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">Outflow</p>
-              <p className="text-xl font-black text-rose-700">
-                {Math.round((totalExpenses / (totalSales + totalExpenses || 1)) * 100)}%
-              </p>
-            </div>
-          </div>
+          
+          <button 
+            onClick={() => navigate('/sales')}
+            className="w-full mt-8 py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] transition-all"
+          >
+            Audit Transactions
+          </button>
         </div>
       </div>
 
-      {/* Recent Ledger Activity */}
+      {/* Recent Activity Table */}
       <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+        <div className="p-10 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-6">
             <div>
-              <h3 className="text-xl font-black text-slate-900 tracking-tight">Recent Activity</h3>
-              <p className="text-sm text-slate-500 font-medium">Latest invoices and recorded documents</p>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Audit Trail</h3>
+              <p className="text-sm text-slate-500 font-medium">Recent document movements and recorded status.</p>
             </div>
             <button 
               onClick={() => navigate('/invoices')}
-              className="px-6 py-2.5 bg-slate-100 text-slate-900 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all"
+              className="px-8 py-3.5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-slate-200 hover:bg-black transition-all"
             >
-              All Records
+              Full Ledger
             </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50/50">
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Reference</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Stakeholder</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Timestamp</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Value</th>
+                <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Reference</th>
+                <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Stakeholder</th>
+                <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Timestamp</th>
+                <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Value</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {documents.slice(0, 5).length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-8 py-16 text-center text-slate-400 italic font-medium">
-                    Initial setup complete. Waiting for first document entry.
+                  <td colSpan={5} className="px-10 py-24 text-center text-slate-400 italic font-medium">
+                    No active documents found. Initiate a quotation or invoice to populate the audit trail.
                   </td>
                 </tr>
               ) : documents.slice(0, 5).map(doc => {
@@ -210,14 +219,14 @@ const Dashboard: React.FC<Props> = ({ state }) => {
                 const total = subtotal + (subtotal * business.taxPercentage / 100);
                 return (
                   <tr key={doc.id} className="hover:bg-slate-50 transition-colors cursor-pointer group" onClick={() => navigate(doc.type === DocumentType.INVOICE ? '/invoices' : '/quotations')}>
-                    <td className="px-8 py-5 font-black text-slate-900 text-sm group-hover:text-blue-600 transition-colors">{doc.number}</td>
-                    <td className="px-8 py-5">
+                    <td className="px-10 py-6 font-black text-slate-900 text-sm group-hover:text-blue-600 transition-colors">{doc.number}</td>
+                    <td className="px-10 py-6">
                       <p className="text-sm font-bold text-slate-800">{doc.clientName}</p>
                       <p className="text-[10px] font-medium text-slate-400">{doc.clientEmail}</p>
                     </td>
-                    <td className="px-8 py-5 text-sm font-medium text-slate-500">{formatDateDisplay(doc.date)}</td>
-                    <td className="px-8 py-5">
-                      <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border ${
+                    <td className="px-10 py-6 text-sm font-medium text-slate-500">{formatDateDisplay(doc.date)}</td>
+                    <td className="px-10 py-6">
+                      <span className={`text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-2xl border ${
                         doc.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                         doc.status === 'Sent' ? 'bg-blue-50 text-blue-700 border-blue-100' :
                         'bg-slate-100 text-slate-600 border-slate-200'
@@ -225,7 +234,7 @@ const Dashboard: React.FC<Props> = ({ state }) => {
                         {doc.status}
                       </span>
                     </td>
-                    <td className="px-8 py-5 text-right font-black text-slate-900 text-sm">
+                    <td className="px-10 py-6 text-right font-black text-slate-900 text-sm">
                       {business.currency} {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
