@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { BusinessDetails } from '../types';
 import { GoogleGenAI } from "@google/genai";
@@ -57,7 +56,7 @@ const Settings: React.FC<Props> = ({ business, updateBusiness }) => {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const prompt = `Generate a modern, professional, and concise set of "Terms and Conditions" for a business named "${details.name || 'our company'}". 
       The terms should be formatted as a numbered list and include:
-      1. Payment terms (e.g., net 7 or 30 days).
+      1. Payment deadlines.
       2. Quote validity period.
       3. Brief note on cancellations or returns.
       4. Late payment interest note.
@@ -265,15 +264,6 @@ const Settings: React.FC<Props> = ({ business, updateBusiness }) => {
             <h3 className="text-base md:text-lg font-bold text-slate-800 border-l-4 border-blue-600 pl-4">Payment & Terms</h3>
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Default Payment Terms</label>
-                <input 
-                    value={details.defaultPaymentTerms || ''}
-                    onChange={(e) => setDetails({...details, defaultPaymentTerms: e.target.value})}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
-                    placeholder="e.g. Net 7 Days, Due on Receipt"
-                />
-              </div>
-              <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Payment Details (Bank Info)</label>
                 <textarea 
                     value={details.paymentDetails}
@@ -286,7 +276,7 @@ const Settings: React.FC<Props> = ({ business, updateBusiness }) => {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2">
                     <label className="block text-sm font-semibold text-slate-700">Default Terms & Conditions</label>
                     <button 
-                        type="button"
+                        type="button" 
                         disabled={isGeneratingTerms}
                         onClick={handleGenerateTerms}
                         className="text-blue-600 text-xs font-bold hover:underline flex items-center gap-1 bg-blue-50 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"

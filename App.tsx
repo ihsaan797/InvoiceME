@@ -22,7 +22,6 @@ const INITIAL_STATE: AppState = {
     invoicePrefix: 'INV',
     quotationPrefix: 'QT',
     defaultTerms: '1. Please pay within 7 days.\n2. Goods once sold are not returnable.',
-    defaultPaymentTerms: 'Net 7 Days',
     paymentDetails: 'Bank: Bank of Maldives (BML)\nAccount Name: SANDPIX MALDIVES\nAccount Number: 7730000000001\nBranch: Main Branch',
     poweredByText: 'SANDPIX MALDIVES'
   },
@@ -91,8 +90,8 @@ const App: React.FC = () => {
             .upsert({ id: 1, ...business });
         
         if (error) {
-            // Silently handle schema cache errors (PGRST204) while developer hasn't run the SQL
-            console.warn("Supabase Sync Warning (Safe to ignore if columns are being added):", error.message);
+            // Silently handle schema cache errors (PGRST204)
+            console.warn("Supabase Sync Warning:", error.message);
         }
     } catch (err) {
         console.error("Critical Sync Error:", err);

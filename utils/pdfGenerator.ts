@@ -67,12 +67,6 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
   pdf.setTextColor(...lightGray);
   pdf.text(`Issue Date: ${formatDateDisplay(doc.date)}`, rightAlignX, metaY + 18, { align: 'right' });
   pdf.text(`Due Date: ${formatDateDisplay(doc.dueDate)}`, rightAlignX, metaY + 23, { align: 'right' });
-  
-  if (doc.paymentTerms) {
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(...deepBlue);
-    pdf.text(`Terms: ${doc.paymentTerms}`, rightAlignX, metaY + 28, { align: 'right' });
-  }
 
   // 4. Header Section - Business Info (Left)
   pdf.setFont('helvetica', 'bold');
@@ -247,24 +241,17 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
   
   pdf.setFillColor(...lightBlue);
   
-  /**
-   * pdf.lines takes an array of segments. 
-   * Segment [x, y] is a line.
-   * Segment [cp1x, cp1y, cp2x, cp2y, x, y] is a cubic bezier.
-   * Coordinates are RELATIVE to the previous point.
-   */
-  
   // Primary Wave
   pdf.lines(
     [
-      [0, -15], // Line relative up to start wave
-      [pageWidth * 0.25, -20, pageWidth * 0.75, 10, pageWidth, -10], // Cubic curve across page
-      [0, 25]  // Line relative down to close bottom-right
+      [0, -15],
+      [pageWidth * 0.25, -20, pageWidth * 0.75, 10, pageWidth, -10],
+      [0, 25]
     ],
-    0, pageHeight, // Start at bottom-left corner
+    0, pageHeight,
     [1, 1],
     'F',
-    true // Close path
+    true
   );
 
   // Secondary overlapping wave for depth (15% opacity)
@@ -305,8 +292,6 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
   const totalPages = (pdf as any).internal.getNumberOfPages();
   pdf.text(`Page 1 of ${totalPages}`, pageWidth - margin, pageHeight - 12, { align: 'right' });
   
-  // NOTE: Business phone number removed as requested for a cleaner footer
-
   // Final Action
   if (viewMode) {
     const blobURL = pdf.output('bloburl');

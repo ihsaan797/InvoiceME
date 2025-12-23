@@ -30,7 +30,6 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
     clientEmail: '',
     date: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    paymentTerms: state.business.defaultPaymentTerms || '',
     notes: state.business.defaultTerms || '',
     items: [{ id: '1', description: '', quantity: 1, unitPrice: 0 }] as LineItem[]
   });
@@ -85,7 +84,6 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
       clientEmail: '',
       date: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      paymentTerms: state.business.defaultPaymentTerms || '',
       notes: state.business.defaultTerms || '',
       items: [{ id: '1', description: '', quantity: 1, unitPrice: 0 }]
     });
@@ -100,7 +98,6 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
       clientEmail: doc.clientEmail,
       date: doc.date,
       dueDate: doc.dueDate,
-      paymentTerms: doc.paymentTerms || '',
       notes: doc.notes || '',
       items: doc.items.map(item => ({ ...item }))
     });
@@ -193,7 +190,6 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
           clientEmail: formData.clientEmail,
           date: formData.date,
           dueDate: formData.dueDate,
-          paymentTerms: formData.paymentTerms,
           items: formData.items,
           notes: formData.notes
         };
@@ -209,7 +205,6 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
         clientEmail: formData.clientEmail,
         date: formData.date,
         dueDate: formData.dueDate,
-        paymentTerms: formData.paymentTerms,
         items: formData.items,
         status: 'Draft',
         notes: formData.notes
@@ -465,10 +460,6 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
                     <div>
                       <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Due Date</label>
                       <input type="date" value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 text-sm font-medium" />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Payment Terms</label>
-                      <input value={formData.paymentTerms} onChange={(e) => setFormData({...formData, paymentTerms: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 text-sm font-medium" placeholder="e.g. Net 7 Days, Immediate" />
                     </div>
                   </div>
                 </div>
