@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { BusinessDetails } from '../types';
 import { GoogleGenAI } from "@google/genai";
@@ -9,7 +10,11 @@ interface Props {
 
 const CURRENCIES = [
     { code: 'MVR', symbol: 'Rf', name: 'Maldivian Rufiyaa' },
-    { code: 'USD', symbol: '$', name: 'US Dollar' }
+    { code: 'USD', symbol: '$', name: 'US Dollar' },
+    { code: 'EUR', symbol: '€', name: 'Euro' },
+    { code: 'GBP', symbol: '£', name: 'British Pound' },
+    { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+    { code: 'AED', symbol: 'DH', name: 'UAE Dirham' }
 ];
 
 const Settings: React.FC<Props> = ({ business, updateBusiness }) => {
@@ -183,6 +188,49 @@ const Settings: React.FC<Props> = ({ business, updateBusiness }) => {
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
                     placeholder="Tax Identification Number"
                 />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Sidebar Footer Text (Powered by)</label>
+                  <input 
+                      value={details.poweredByText || ''}
+                      onChange={(e) => setDetails({...details, poweredByText: e.target.value})}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 text-sm"
+                      placeholder="e.g. SANDPIX MALDIVES"
+                  />
+                </div>
+            </div>
+          </section>
+
+          <section className="space-y-6">
+            <h3 className="text-base md:text-lg font-bold text-slate-800 border-l-4 border-blue-600 pl-4">Regional & Tax Settings</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Default GST/Tax Percentage (%)</label>
+                  <div className="relative">
+                    <input 
+                        required
+                        type="number"
+                        step="0.01"
+                        value={details.taxPercentage}
+                        onChange={(e) => setDetails({...details, taxPercentage: parseFloat(e.target.value) || 0})}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
+                        placeholder="e.g. 8"
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Business Currency</label>
+                  <select 
+                      required
+                      value={details.currency}
+                      onChange={(e) => setDetails({...details, currency: e.target.value})}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm appearance-none"
+                  >
+                    {CURRENCIES.map(curr => (
+                      <option key={curr.code} value={curr.code}>{curr.code} ({curr.symbol}) - {curr.name}</option>
+                    ))}
+                  </select>
                 </div>
             </div>
           </section>

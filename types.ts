@@ -1,3 +1,4 @@
+
 export enum DocumentType {
   QUOTATION = 'QUOTATION',
   INVOICE = 'INVOICE'
@@ -21,6 +22,7 @@ export interface BusinessDetails {
   logoUrl?: string;
   defaultTerms?: string;
   paymentDetails?: string;
+  poweredByText?: string;
 }
 
 export interface LineItem {

@@ -23,7 +23,8 @@ const INITIAL_STATE: AppState = {
     invoicePrefix: 'INV',
     quotationPrefix: 'QT',
     defaultTerms: '1. Please pay within 7 days.\n2. Goods once sold are not returnable.',
-    paymentDetails: 'Bank: Bank of Maldives (BML)\nAccount Name: SANDPIX MALDIVES\nAccount Number: 7730000000001\nBranch: Main Branch'
+    paymentDetails: 'Bank: Bank of Maldives (BML)\nAccount Name: SANDPIX MALDIVES\nAccount Number: 7730000000001\nBranch: Main Branch',
+    poweredByText: 'SANDPIX MALDIVES'
   },
   documents: [],
   transactions: [],
@@ -42,21 +43,28 @@ const App: React.FC = () => {
       setIsLoading(true);
       try {
         const [
-          { data: businessData },
+          { data: businessData, error: bizError },
           { data: docsData },
           { data: txsData },
           { data: catalogData },
           { data: clientsData }
         ] = await Promise.all([
-          supabase.from('business_settings').select('*').single(),
-          supabase.from('documents').select('*'),
-          supabase.from('transactions').select('*'),
-          supabase.from('catalog_items').select('*'),
-          supabase.from('clients').select('*')
+          supabase.from('business_settings').select('*').eq('id', 1).maybeSingle(),
+          supabase.from('documents').select('*').order('created_at', { ascending: false }),
+          supabase.from('transactions').select('*').order('created_at', { ascending: false }),
+          supabase.from('catalog_items').select('*').order('created_at', { ascending: false }),
+          supabase.from('clients').select('*').order('created_at', { ascending: false })
         ]);
 
+        // If no business data found (first time), try to insert initial data
+        let activeBusiness = businessData || INITIAL_STATE.business;
+        if (!businessData && !bizError) {
+           const { data: inserted } = await supabase.from('business_settings').insert({ id: 1, ...INITIAL_STATE.business }).select().single();
+           if (inserted) activeBusiness = inserted;
+        }
+
         setState({
-          business: businessData || INITIAL_STATE.business,
+          business: activeBusiness,
           documents: docsData || [],
           transactions: txsData || [],
           catalog: catalogData || [],
@@ -73,8 +81,18 @@ const App: React.FC = () => {
   }, []);
 
   const updateBusiness = async (business: BusinessDetails) => {
+    // 1. Update UI state immediately for responsiveness
     setState(prev => ({ ...prev, business }));
-    await supabase.from('business_settings').upsert({ id: 1, ...business });
+    
+    // 2. Persist to Supabase using id:1 to ensure only one profile exists
+    const { error } = await supabase
+      .from('business_settings')
+      .upsert({ id: 1, ...business });
+    
+    if (error) {
+      console.error("Error updating business settings:", error);
+      alert(`Sync Error: ${error.message}. Ensure your database schema matches.`);
+    }
   };
 
   const addDocument = async (doc: Document) => {
@@ -193,7 +211,7 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <div className="flex h-screen bg-slate-50 overflow-hidden relative">
-        <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+        <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} business={state.business} />
         
         <div className="flex-1 flex flex-col min-w-0">
           <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">

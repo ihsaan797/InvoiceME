@@ -1,12 +1,15 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { BusinessDetails } from '../types';
 
 interface Props {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  business: BusinessDetails;
 }
 
-const Sidebar: React.FC<Props> = ({ isOpen, setIsOpen }) => {
+const Sidebar: React.FC<Props> = ({ isOpen, setIsOpen, business }) => {
   const location = useLocation();
 
   const navItems = [
@@ -75,7 +78,14 @@ const Sidebar: React.FC<Props> = ({ isOpen, setIsOpen }) => {
         </nav>
         
         <div className="p-6 border-t border-slate-800">
-          <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">v1.0.0 Stable</p>
+          <div className="flex flex-col gap-0.5 select-none">
+            <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">
+              Powered by:
+            </span>
+            <span className="text-[11px] font-black tracking-widest text-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.8)] animate-pulse">
+              {business.poweredByText || 'SANDPIX MALDIVES'}
+            </span>
+          </div>
         </div>
       </aside>
     </>
