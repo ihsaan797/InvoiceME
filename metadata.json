@@ -1,0 +1,7 @@
+{
+  "name": "Invoice ME",
+  "description": "A comprehensive business management platform for managing quotations, invoices, sales, and expenses with integrated PDF generation and smart features.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
