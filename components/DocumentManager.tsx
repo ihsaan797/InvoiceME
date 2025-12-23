@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-// Import Link from react-router-dom to fix the 'Cannot find name Link' error
 import { Link } from 'react-router-dom';
 import { AppState, Document, DocumentType, LineItem, CatalogItem, Client } from '../types';
 import { generatePDF } from '../utils/pdfGenerator';
@@ -31,6 +30,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
     clientEmail: '',
     date: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    paymentTerms: state.business.defaultPaymentTerms || '',
     notes: state.business.defaultTerms || '',
     items: [{ id: '1', description: '', quantity: 1, unitPrice: 0 }] as LineItem[]
   });
@@ -85,6 +85,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
       clientEmail: '',
       date: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      paymentTerms: state.business.defaultPaymentTerms || '',
       notes: state.business.defaultTerms || '',
       items: [{ id: '1', description: '', quantity: 1, unitPrice: 0 }]
     });
@@ -99,6 +100,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
       clientEmail: doc.clientEmail,
       date: doc.date,
       dueDate: doc.dueDate,
+      paymentTerms: doc.paymentTerms || '',
       notes: doc.notes || '',
       items: doc.items.map(item => ({ ...item }))
     });
@@ -123,7 +125,6 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
     };
 
     setFormData(prev => {
-      // If the first item is empty, replace it
       if (prev.items.length === 1 && !prev.items[0].description && prev.items[0].unitPrice === 0) {
         return { ...prev, items: [newItem] };
       }
@@ -145,17 +146,15 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
 
   const handleSaveToPredefined = () => {
     if (!formData.clientName.trim() || !formData.clientEmail.trim()) {
-      setSaveClientStatus({ type: 'error', message: 'Name and email are required to save.' });
+      setSaveClientStatus({ type: 'error', message: 'Name and email are required.' });
       return;
     }
-
     const isDuplicate = state.clients.some(c => 
       c.name.toLowerCase() === formData.clientName.toLowerCase() || 
       c.email.toLowerCase() === formData.clientEmail.toLowerCase()
     );
-
     if (isDuplicate) {
-      setSaveClientStatus({ type: 'error', message: 'This client already exists in predefined list.' });
+      setSaveClientStatus({ type: 'error', message: 'Client already exists.' });
     } else {
       addClient({
         id: `manual-${Date.now()}`,
@@ -164,9 +163,8 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
         phone: '',
         address: ''
       });
-      setSaveClientStatus({ type: 'success', message: 'Client saved to predefined list!' });
+      setSaveClientStatus({ type: 'success', message: 'Client saved!' });
     }
-
     setTimeout(() => setSaveClientStatus(null), 3000);
   };
 
@@ -195,6 +193,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
           clientEmail: formData.clientEmail,
           date: formData.date,
           dueDate: formData.dueDate,
+          paymentTerms: formData.paymentTerms,
           items: formData.items,
           notes: formData.notes
         };
@@ -210,6 +209,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
         clientEmail: formData.clientEmail,
         date: formData.date,
         dueDate: formData.dueDate,
+        paymentTerms: formData.paymentTerms,
         items: formData.items,
         status: 'Draft',
         notes: formData.notes
@@ -223,7 +223,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
     setLoadingSmart(true);
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const prompt = `Generate 3 professional service line items for a business in the ${state.business.name} industry.`;
+        const prompt = `Generate 3 professional service line items for a business in the ${state.business.name} industry. Return as JSON array of objects with description (string) and unitPrice (number).`;
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt,
@@ -259,369 +259,379 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Paid': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'Sent': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'Expired': return 'bg-rose-100 text-rose-700 border-rose-200';
+      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
+  const getDocTypeIcon = () => type === DocumentType.QUOTATION ? 'fa-file-lines' : 'fa-file-invoice-dollar';
+
   return (
-    <div className="space-y-6 animate-fadeIn pb-8">
-      {/* Search and Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-8 animate-fadeIn pb-12">
+      {/* Header Section */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">{type === DocumentType.QUOTATION ? 'Quotations' : 'Invoices'}</h1>
-          <p className="text-sm text-slate-500">Manage your business documents here.</p>
-        </div>
-        <div className="flex flex-col sm:flex-row w-full md:w-auto items-stretch sm:items-center gap-3">
-            <div className="relative flex-1 md:w-64">
-                <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                <input 
-                    type="text"
-                    placeholder="Search documents..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-sm"
-                />
+          <div className="flex items-center gap-3 mb-1">
+            <div className={`p-2 rounded-xl text-white ${type === DocumentType.QUOTATION ? 'bg-indigo-500' : 'bg-blue-600'}`}>
+              <i className={`fa-solid ${getDocTypeIcon()} text-lg`}></i>
             </div>
+            <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+              {type === DocumentType.QUOTATION ? 'Quotations' : 'Invoices'}
+            </h1>
+          </div>
+          <p className="text-slate-500">Track and manage your {type === DocumentType.QUOTATION ? 'pricing quotes' : 'billing documents'} with ease.</p>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row w-full lg:w-auto items-stretch sm:items-center gap-3">
+          <div className="relative flex-1 lg:w-72">
+            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input 
+              type="text"
+              placeholder={`Search ${type.toLowerCase()}s...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-sm"
+            />
+          </div>
+          <button 
+            onClick={() => { resetForm(); setShowModal(true); }}
+            className={`px-6 py-3 rounded-2xl font-bold text-white shadow-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap text-sm active:scale-95 ${
+              type === DocumentType.QUOTATION ? 'bg-indigo-600 shadow-indigo-100 hover:bg-indigo-700' : 'bg-blue-600 shadow-blue-100 hover:bg-blue-700'
+            }`}
+          >
+            <i className="fa-solid fa-plus"></i>
+            New {type === DocumentType.QUOTATION ? 'Quotation' : 'Invoice'}
+          </button>
+        </div>
+      </div>
+
+      {/* Grid of Documents */}
+      {filteredDocs.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-slate-100 p-20 text-center shadow-sm">
+          <div className="bg-slate-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i className={`fa-solid ${getDocTypeIcon()} text-4xl text-slate-200`}></i>
+          </div>
+          <h3 className="text-xl font-bold text-slate-900">No {type.toLowerCase()}s found</h3>
+          <p className="text-slate-500 mt-2 max-w-sm mx-auto">
+            {searchTerm 
+              ? `We couldn't find any results matching your search.` 
+              : `Your ${type.toLowerCase()} list is empty. Start by creating a professional document for your clients.`}
+          </p>
+          {!searchTerm && (
             <button 
-                onClick={() => { resetForm(); setShowModal(true); }}
-                className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+              onClick={() => setShowModal(true)}
+              className="mt-8 text-blue-600 font-bold hover:bg-blue-50 px-6 py-2 rounded-xl transition-colors"
             >
-                <i className="fa-solid fa-plus"></i>
-                New {type === DocumentType.QUOTATION ? 'Quotation' : 'Invoice'}
+              Create Now
             </button>
+          )}
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
+          {filteredDocs.map(doc => {
+            const subtotal = doc.items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
+            const total = subtotal + (subtotal * state.business.taxPercentage / 100);
+            return (
+              <div key={doc.id} className="bg-white rounded-3xl border border-slate-100 p-6 hover:shadow-xl hover:shadow-slate-200/50 transition-all group flex flex-col">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <h3 className="font-black text-slate-900 text-lg tracking-tight group-hover:text-blue-600 transition-colors">{doc.number}</h3>
+                    <p className="text-slate-400 text-xs font-medium uppercase tracking-widest">{formatDateDisplay(doc.date)}</p>
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-xl border ${getStatusColor(doc.status)}`}>
+                    {doc.status}
+                  </span>
+                </div>
 
-      {/* Main Table Wrapper for Horizontal Scroll */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[800px]">
-            <thead className="bg-slate-50 border-b border-slate-100">
-              <tr>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-600 uppercase">Number</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-600 uppercase">Client</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-600 uppercase">Date</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-600 uppercase">Amount</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-600 uppercase">Status</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-600 uppercase text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredDocs.length === 0 ? (
-                  <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
-                          <i className="fa-solid fa-folder-open text-4xl mb-3 block"></i>
-                          No records found.
-                      </td>
-                  </tr>
-              ) : filteredDocs.map(doc => {
-                const subtotal = doc.items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
-                const total = subtotal + (subtotal * state.business.taxPercentage / 100);
-                return (
-                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900">{doc.number}</span>
-                        {doc.status === 'Paid' && (
-                          <i className="fa-solid fa-circle-check text-emerald-500 text-xs" title="Paid"></i>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-slate-800">{doc.clientName}</div>
-                      <div className="text-xs text-slate-500">{doc.clientEmail}</div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600 text-sm">{formatDateDisplay(doc.date)}</td>
-                    <td className="px-6 py-4 font-bold text-slate-900">{state.business.currency} {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td className="px-6 py-4">
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
-                        doc.status === 'Paid' ? 'bg-emerald-100 text-emerald-600' :
-                        doc.status === 'Sent' ? 'bg-blue-100 text-blue-600' :
-                        'bg-slate-100 text-slate-500'
-                      }`}>
-                        {doc.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap space-x-1">
-                      <button onClick={() => handleEdit(doc)} title="Edit" className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg">
-                        <i className="fa-solid fa-pencil"></i>
-                      </button>
-                      <button onClick={() => generatePDF(doc, state.business, true)} title="View PDF" className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
-                        <i className="fa-solid fa-eye"></i>
-                      </button>
-                      <button onClick={() => generatePDF(doc, state.business, false)} title="Download PDF" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
-                        <i className="fa-solid fa-download"></i>
-                      </button>
-                      {type === DocumentType.INVOICE && doc.status !== 'Paid' && (
-                        <button onClick={() => updateStatus(doc.id, 'Paid')} title="Mark as Paid" className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg">
-                          <i className="fa-solid fa-check"></i>
-                        </button>
-                      )}
-                      <button onClick={() => deleteDocument(doc.id)} title="Delete" className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
-                        <i className="fa-solid fa-trash"></i>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Main Document Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-4">
-          <div className="bg-white rounded-none md:rounded-2xl w-full max-w-4xl h-full md:h-auto md:max-h-[90vh] overflow-y-auto shadow-2xl relative flex flex-col">
-            <div className="p-4 md:p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-20">
-              <h2 className="text-xl md:text-2xl font-bold text-slate-900">
-                {editingDocId ? 'Edit' : 'Create New'} {type === DocumentType.QUOTATION ? 'Quotation' : 'Invoice'}
-              </h2>
-              <button onClick={() => resetForm()} className="text-slate-400 hover:text-slate-600 p-2">
-                <i className="fa-solid fa-xmark text-xl"></i>
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6 md:space-y-8 flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                        <label className="block text-sm font-semibold text-slate-700">Client Name</label>
-                        <div className="flex gap-3">
-                          <button 
-                              type="button" 
-                              onClick={() => { setClientSearchTerm(''); setShowClientModal(true); }}
-                              className="text-blue-600 text-[10px] md:text-xs font-bold hover:underline flex items-center gap-1"
-                          >
-                              <i className="fa-solid fa-address-book"></i>
-                              Browse Predefined
-                          </button>
-                          <button 
-                              type="button" 
-                              onClick={handleSaveToPredefined}
-                              className="text-emerald-600 text-[10px] md:text-xs font-bold hover:underline flex items-center gap-1"
-                              title="Save these details as a predefined client"
-                          >
-                              <i className="fa-solid fa-user-plus"></i>
-                              Save as Predefined
-                          </button>
-                        </div>
+                <div className="bg-slate-50 rounded-2xl p-4 mb-6 flex-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Client</p>
+                  <p className="font-bold text-slate-800 truncate">{doc.clientName}</p>
+                  <p className="text-xs text-slate-500 truncate">{doc.clientEmail}</p>
+                  
+                  <div className="mt-4 pt-4 border-t border-slate-200 flex justify-between items-end">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Amount</p>
+                      <p className="text-xl font-black text-slate-900">
+                        {state.business.currency} {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </p>
                     </div>
-                    {saveClientStatus && (
-                      <div className={`text-[10px] font-bold px-2 py-1 rounded-lg animate-fadeIn ${saveClientStatus.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                        {saveClientStatus.message}
+                    {doc.dueDate && (
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Due Date</p>
+                        <p className={`text-xs font-bold ${new Date(doc.dueDate) < new Date() && doc.status !== 'Paid' ? 'text-rose-500' : 'text-slate-600'}`}>
+                          {formatDateDisplay(doc.dueDate)}
+                        </p>
                       </div>
                     )}
-                    <input required value={formData.clientName} onChange={(e) => setFormData({...formData, clientName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900" placeholder="Enter client name or select..." />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Client Email</label>
-                    <input required type="email" value={formData.clientEmail} onChange={(e) => setFormData({...formData, clientEmail: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900" placeholder="client@example.com" />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Date</label>
-                    <input type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900" />
+
+                <div className="flex flex-wrap items-center gap-2 mt-auto">
+                  <button onClick={() => handleEdit(doc)} className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-xl font-bold text-xs hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
+                    <i className="fa-solid fa-pencil"></i> Edit
+                  </button>
+                  <button onClick={() => generatePDF(doc, state.business, true)} className="flex-1 bg-blue-50 text-blue-600 py-2.5 rounded-xl font-bold text-xs hover:bg-blue-100 transition-colors flex items-center justify-center gap-2">
+                    <i className="fa-solid fa-eye"></i> View
+                  </button>
+                  <div className="w-full flex gap-2">
+                    <button onClick={() => generatePDF(doc, state.business, false)} className="flex-1 bg-slate-900 text-white py-2.5 rounded-xl font-bold text-xs hover:bg-black transition-colors flex items-center justify-center gap-2 shadow-lg shadow-slate-200">
+                      <i className="fa-solid fa-download"></i> PDF
+                    </button>
+                    {type === DocumentType.INVOICE && doc.status !== 'Paid' && (
+                      <button onClick={() => updateStatus(doc.id, 'Paid')} className="flex-1 bg-emerald-100 text-emerald-700 py-2.5 rounded-xl font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2">
+                        <i className="fa-solid fa-check"></i> Paid
+                      </button>
+                    )}
+                    <button onClick={() => { if(window.confirm('Delete this record?')) deleteDocument(doc.id); }} className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
+                      <i className="fa-solid fa-trash-can"></i>
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Due Date</label>
-                    <input type="date" value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Creation Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-6 overflow-hidden">
+          <div className="bg-white rounded-none md:rounded-3xl w-full max-w-5xl h-full md:h-auto md:max-h-[90vh] shadow-2xl overflow-hidden animate-slideUp flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="p-6 md:p-8 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white ${type === DocumentType.QUOTATION ? 'bg-indigo-500' : 'bg-blue-600'}`}>
+                   <i className={`fa-solid ${getDocTypeIcon()} text-xl`}></i>
+                </div>
+                <div>
+                  <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+                    {editingDocId ? 'Update' : 'New'} {type === DocumentType.QUOTATION ? 'Quotation' : 'Invoice'}
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">Step through to generate your professional PDF.</p>
+                </div>
+              </div>
+              <button onClick={() => resetForm()} className="text-slate-400 hover:text-slate-600 p-3 hover:bg-slate-50 rounded-xl transition-all">
+                <i className="fa-solid fa-xmark text-2xl"></i>
+              </button>
+            </div>
+
+            {/* Modal Body - Scrollable */}
+            <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 p-6 md:p-8 space-y-10 custom-scrollbar">
+              
+              {/* Client & Metadata Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest border-l-4 border-blue-600 pl-3">Client Details</h3>
+                    <div className="flex gap-4">
+                      <button type="button" onClick={() => { setClientSearchTerm(''); setShowClientModal(true); }} className="text-blue-600 text-xs font-bold hover:underline flex items-center gap-1.5">
+                        <i className="fa-solid fa-address-book"></i> Browse Predefined
+                      </button>
+                      <button type="button" onClick={handleSaveToPredefined} className="text-emerald-600 text-xs font-bold hover:underline flex items-center gap-1.5">
+                        <i className="fa-solid fa-user-plus"></i> Quick Save
+                      </button>
+                    </div>
+                  </div>
+                  {saveClientStatus && (
+                    <div className={`text-xs font-bold px-3 py-2 rounded-xl animate-fadeIn flex items-center gap-2 ${saveClientStatus.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                      <i className={`fa-solid ${saveClientStatus.type === 'success' ? 'fa-check-circle' : 'fa-circle-exclamation'}`}></i>
+                      {saveClientStatus.message}
+                    </div>
+                  )}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Client Name / Business</label>
+                      <input required value={formData.clientName} onChange={(e) => setFormData({...formData, clientName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 text-sm font-medium" placeholder="Who is this for?" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Email Address</label>
+                      <input required type="email" value={formData.clientEmail} onChange={(e) => setFormData({...formData, clientEmail: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 text-sm font-medium" placeholder="client@example.com" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest border-l-4 border-blue-600 pl-3 mb-2">Document Info</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Issue Date</label>
+                      <input type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 text-sm font-medium" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Due Date</label>
+                      <input type="date" value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 text-sm font-medium" />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Payment Terms</label>
+                      <input value={formData.paymentTerms} onChange={(e) => setFormData({...formData, paymentTerms: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 text-sm font-medium" placeholder="e.g. Net 7 Days, Immediate" />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                    <h3 className="text-lg font-bold text-slate-800">Line Items</h3>
-                    <div className="flex gap-4">
-                        <button 
-                            type="button"
-                            onClick={() => { setCatalogSearchTerm(''); setShowCatalogModal(true); }}
-                            className="text-slate-600 text-xs md:text-sm font-semibold hover:underline flex items-center gap-1"
-                        >
-                            <i className="fa-solid fa-boxes-stacked"></i>
-                            Browse Catalog
-                        </button>
-                        <button 
-                            type="button"
-                            disabled={loadingSmart}
-                            onClick={handleSmartGenerate}
-                            className="text-blue-600 text-xs md:text-sm font-semibold hover:underline flex items-center gap-1"
-                        >
-                            <i className={`fa-solid ${loadingSmart ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'}`}></i>
-                            {loadingSmart ? 'Thinking...' : 'AI Suggest'}
-                        </button>
-                    </div>
+              {/* Items Section */}
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest border-l-4 border-blue-600 pl-3">Line Items</h3>
+                  <div className="flex flex-wrap gap-4">
+                    <button type="button" onClick={() => { setCatalogSearchTerm(''); setShowCatalogModal(true); }} className="text-slate-600 text-xs font-bold hover:underline flex items-center gap-1.5 px-3 py-2 bg-slate-50 rounded-xl transition-colors">
+                      <i className="fa-solid fa-boxes-stacked"></i> Catalog
+                    </button>
+                    <button type="button" disabled={loadingSmart} onClick={handleSmartGenerate} className="text-blue-600 text-xs font-bold hover:underline flex items-center gap-1.5 px-3 py-2 bg-blue-50 rounded-xl transition-colors disabled:opacity-50">
+                      <i className={`fa-solid ${loadingSmart ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'}`}></i> {loadingSmart ? 'Thinking...' : 'AI Suggest'}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="space-y-3">
-                  {formData.items.map((item) => (
-                    <div key={item.id} className="flex flex-col gap-3 md:flex-row md:gap-4 items-start bg-slate-50 p-4 rounded-xl border border-slate-100">
-                      <div className="flex-1 w-full">
-                        <input placeholder="Description" value={item.description} onChange={(e) => handleItemChange(item.id, 'description', e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm" />
+                <div className="space-y-4">
+                  {formData.items.map((item, index) => (
+                    <div key={item.id} className="flex flex-col lg:flex-row gap-4 items-start bg-slate-50 p-6 rounded-3xl border border-slate-100 group/item relative">
+                      <div className="flex-1 w-full space-y-2">
+                         <label className="lg:hidden text-[10px] font-black uppercase text-slate-400">Description</label>
+                         <input placeholder="Service description or product name..." value={item.description} onChange={(e) => handleItemChange(item.id, 'description', e.target.value)} className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm font-medium shadow-sm" />
                       </div>
-                      <div className="flex w-full md:w-auto gap-3">
-                        <div className="flex-1 md:w-20">
-                          <input type="number" placeholder="Qty" value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', parseFloat(e.target.value) || 0)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm" />
+                      <div className="flex w-full lg:w-auto gap-4">
+                        <div className="flex-1 lg:w-24 space-y-2">
+                          <label className="lg:hidden text-[10px] font-black uppercase text-slate-400">Qty</label>
+                          <input type="number" placeholder="Qty" value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', parseFloat(e.target.value) || 0)} className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm font-medium shadow-sm text-center" />
                         </div>
-                        <div className="flex-[2] md:w-32">
-                          <input type="number" placeholder="Price" value={item.unitPrice} onChange={(e) => handleItemChange(item.id, 'unitPrice', parseFloat(e.target.value) || 0)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm" />
+                        <div className="flex-[2] lg:w-36 space-y-2">
+                          <label className="lg:hidden text-[10px] font-black uppercase text-slate-400">Price</label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">{state.business.currency}</span>
+                            <input type="number" placeholder="0.00" value={item.unitPrice} onChange={(e) => handleItemChange(item.id, 'unitPrice', parseFloat(e.target.value) || 0)} className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm font-medium shadow-sm" />
+                          </div>
                         </div>
-                        <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
+                        <div className="hidden lg:flex flex-col items-end justify-center w-32 space-y-1">
+                           <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Line Total</span>
+                           <span className="font-bold text-slate-900 text-sm">
+                             {(item.quantity * item.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                           </span>
+                        </div>
+                        <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-3.5 text-slate-300 hover:text-rose-500 transition-colors bg-white lg:bg-transparent rounded-2xl lg:rounded-none shadow-sm lg:shadow-none">
                           <i className="fa-solid fa-trash-can"></i>
                         </button>
                       </div>
                     </div>
                   ))}
-                </div>
-
-                <div className="flex flex-col lg:flex-row justify-between items-start gap-4 pt-4">
-                  <button type="button" onClick={handleAddItem} className="flex-1 w-full border-2 border-dashed border-slate-200 rounded-xl py-3 text-slate-500 font-medium hover:border-blue-400 hover:text-blue-500 transition-all text-sm">
-                    <i className="fa-solid fa-plus mr-2"></i>Add Another Item
+                  
+                  <button type="button" onClick={handleAddItem} className="w-full border-2 border-dashed border-slate-200 rounded-3xl py-6 text-slate-400 font-black uppercase tracking-widest hover:border-blue-300 hover:text-blue-500 hover:bg-blue-50/30 transition-all text-xs flex items-center justify-center gap-3">
+                    <i className="fa-solid fa-plus-circle text-lg"></i> Add Line Item
                   </button>
-
-                  <div className="w-full lg:w-72 bg-slate-900 text-white rounded-2xl p-5 md:p-6 shadow-xl space-y-3">
-                    <div className="flex justify-between items-center text-xs md:text-sm text-slate-400">
-                      <span>Subtotal</span>
-                      <span>{state.business.currency} {currentSubtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs md:text-sm text-slate-400">
-                      <span>Tax ({state.business.taxPercentage}%)</span>
-                      <span>{state.business.currency} {currentTaxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Total</span>
-                      <span className="text-xl md:text-2xl font-black">{state.business.currency} {currentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-end gap-3 md:gap-4 border-t border-slate-100 pt-6">
-                <button type="button" onClick={() => resetForm()} className="px-6 py-3 border border-slate-200 rounded-xl font-semibold text-slate-600 hover:bg-slate-50 text-sm">Cancel</button>
-                <button type="submit" className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-xl shadow-blue-200 hover:bg-blue-700 text-sm">
-                  {editingDocId ? 'Update Document' : 'Save & Generate'}
-                </button>
+              {/* Summary & Footer Notes Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 pt-4 pb-10">
+                <div className="lg:col-span-3 space-y-6">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest border-l-4 border-blue-600 pl-3 mb-4">Terms & Notes</h3>
+                    <textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm font-medium min-h-[160px] resize-none transition-all" placeholder="Enter standard terms, bank details, or specific notes for this client..." />
+                  </div>
+                </div>
+                
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="bg-slate-900 rounded-[2.5rem] p-8 md:p-10 text-white shadow-2xl relative overflow-hidden group">
+                    {/* Decorative element */}
+                    <div className="absolute top-0 right-0 p-12 opacity-[0.05] pointer-events-none group-hover:scale-110 transition-transform">
+                      <i className="fa-solid fa-receipt text-9xl"></i>
+                    </div>
+
+                    <div className="space-y-4 relative z-10">
+                      <div className="flex justify-between items-center text-slate-400">
+                        <span className="text-xs font-bold uppercase tracking-widest">Subtotal</span>
+                        <span className="font-bold">{state.business.currency} {currentSubtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-400">
+                        <span className="text-xs font-bold uppercase tracking-widest">Tax ({state.business.taxPercentage}%)</span>
+                        <span className="font-bold">{state.business.currency} {currentTaxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="pt-6 border-t border-slate-800">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-black uppercase tracking-[0.2em] text-blue-400">Grand Total</span>
+                          <div className="text-right">
+                             <p className="text-3xl font-black">{state.business.currency} {currentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-400 text-center font-medium italic">Calculated automatically based on your regional tax settings ({state.business.taxPercentage}%)</p>
+                </div>
               </div>
             </form>
 
-            {/* Catalog Browser Overlay Modal */}
-            {showCatalogModal && (
-                <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md z-30 flex items-end md:items-center justify-center p-0 md:p-4">
-                    <div className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-slideUp flex flex-col max-h-[80vh]">
-                        <div className="p-4 md:p-6 border-b border-slate-100 flex justify-between items-center bg-white">
-                            <h3 className="text-lg md:text-xl font-bold text-slate-900">Select Item</h3>
-                            <button onClick={() => setShowCatalogModal(false)} className="text-slate-400 hover:text-slate-600 p-2">
-                                <i className="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        
-                        <div className="p-4 bg-slate-50 border-b border-slate-100">
-                          <div className="relative">
-                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input 
-                              autoFocus
-                              type="text" 
-                              placeholder="Search catalog items..."
-                              value={catalogSearchTerm}
-                              onChange={(e) => setCatalogSearchTerm(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-sm"
-                            />
-                          </div>
-                        </div>
+            {/* Modal Actions */}
+            <div className="p-6 md:p-8 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-4 bg-slate-50 shrink-0">
+              <button type="button" onClick={() => resetForm()} className="px-8 py-4 border border-slate-200 rounded-2xl font-black uppercase tracking-widest text-slate-500 hover:bg-white hover:text-slate-900 transition-all text-[10px]">
+                Cancel
+              </button>
+              <button onClick={handleSubmit} className="px-12 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-[0.15em] shadow-xl shadow-slate-200 hover:bg-black transition-all text-[10px] flex items-center justify-center gap-3 active:scale-95">
+                <i className="fa-solid fa-file-export"></i>
+                {editingDocId ? 'Update Document' : 'Generate & Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                        <div className="flex-1 overflow-y-auto bg-white">
-                            {state.catalog.length === 0 ? (
-                                <div className="p-12 text-center text-slate-400">
-                                    <p className="mb-4 text-sm">No items in your catalog yet.</p>
-                                    <Link to="/catalog" className="text-blue-600 font-bold hover:underline" onClick={() => setShowCatalogModal(false)}>
-                                        Go to Catalog Manager
-                                    </Link>
-                                </div>
-                            ) : filteredCatalog.length === 0 ? (
-                                <div className="p-12 text-center text-slate-400 text-sm">
-                                    <p>No matches for "{catalogSearchTerm}"</p>
-                                </div>
-                            ) : (
-                                <div className="divide-y divide-slate-100">
-                                    {filteredCatalog.map(item => (
-                                        <button 
-                                            key={item.id}
-                                            type="button"
-                                            onClick={() => handleAddFromCatalog(item)}
-                                            className="w-full text-left p-4 hover:bg-blue-50 transition-colors group flex justify-between items-center"
-                                        >
-                                            <div className="min-w-0 flex-1 pr-4">
-                                                <div className="font-semibold text-slate-800 group-hover:text-blue-700 truncate text-sm">{item.description}</div>
-                                                <div className="text-xs text-slate-500">{state.business.currency} {item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                                            </div>
-                                            <i className="fa-solid fa-plus text-slate-300 group-hover:text-blue-500"></i>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+      {/* Helper Modal: Catalog Browser */}
+      {showCatalogModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-slideUp">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-black text-slate-900 uppercase tracking-widest text-sm">Item Catalog</h3>
+              <button onClick={() => setShowCatalogModal(false)} className="text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="relative">
+                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input autoFocus type="text" placeholder="Search catalog items..." value={catalogSearchTerm} onChange={(e) => setCatalogSearchTerm(e.target.value)} className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              </div>
+              <div className="max-h-80 overflow-y-auto space-y-2 custom-scrollbar">
+                {filteredCatalog.length === 0 ? (
+                  <p className="text-center py-10 text-slate-400 italic">No items found in your catalog.</p>
+                ) : filteredCatalog.map(item => (
+                  <button key={item.id} type="button" onClick={() => handleAddFromCatalog(item)} className="w-full text-left p-4 rounded-2xl hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-all flex justify-between items-center group">
+                    <span className="font-bold text-slate-700 group-hover:text-blue-700 transition-colors">{item.description}</span>
+                    <span className="font-black text-slate-900">{state.business.currency} {item.unitPrice.toLocaleString()}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-            {/* Client Browser Overlay Modal */}
-            {showClientModal && (
-                <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md z-30 flex items-end md:items-center justify-center p-0 md:p-4">
-                    <div className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-slideUp flex flex-col max-h-[80vh]">
-                        <div className="p-4 md:p-6 border-b border-slate-100 flex justify-between items-center bg-white">
-                            <h3 className="text-lg md:text-xl font-bold text-slate-900">Select Client</h3>
-                            <button onClick={() => setShowClientModal(false)} className="text-slate-400 hover:text-slate-600 p-2">
-                                <i className="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        
-                        <div className="p-4 bg-slate-50 border-b border-slate-100">
-                          <div className="relative">
-                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input 
-                              autoFocus
-                              type="text" 
-                              placeholder="Search predefined clients..."
-                              value={clientSearchTerm}
-                              onChange={(e) => setClientSearchTerm(e.target.value)}
-                              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-sm"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto bg-white">
-                            {state.clients.length === 0 ? (
-                                <div className="p-12 text-center text-slate-400">
-                                    <p className="mb-4 text-sm">No predefined clients found.</p>
-                                    <Link to="/clients" className="text-blue-600 font-bold hover:underline" onClick={() => setShowClientModal(false)}>
-                                        Go to Client Manager
-                                    </Link>
-                                </div>
-                            ) : filteredClients.length === 0 ? (
-                                <div className="p-12 text-center text-slate-400 text-sm">
-                                    <p>No matches for "{clientSearchTerm}"</p>
-                                </div>
-                            ) : (
-                                <div className="divide-y divide-slate-100">
-                                    {filteredClients.map(client => (
-                                        <button 
-                                            key={client.id}
-                                            type="button"
-                                            onClick={() => handleSelectClient(client)}
-                                            className="w-full text-left p-4 hover:bg-emerald-50 transition-colors group flex justify-between items-center"
-                                        >
-                                            <div className="min-w-0 flex-1 pr-4">
-                                                <div className="font-semibold text-slate-800 group-hover:text-emerald-700 truncate text-sm">{client.name}</div>
-                                                <div className="text-xs text-slate-500">{client.email}</div>
-                                            </div>
-                                            <i className="fa-solid fa-user-check text-slate-300 group-hover:text-emerald-500"></i>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+      {/* Helper Modal: Client Browser */}
+      {showClientModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-slideUp">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-black text-slate-900 uppercase tracking-widest text-sm">Client Database</h3>
+              <button onClick={() => setShowClientModal(false)} className="text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="relative">
+                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input autoFocus type="text" placeholder="Search saved clients..." value={clientSearchTerm} onChange={(e) => setClientSearchTerm(e.target.value)} className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              </div>
+              <div className="max-h-80 overflow-y-auto space-y-2 custom-scrollbar">
+                {filteredClients.length === 0 ? (
+                  <p className="text-center py-10 text-slate-400 italic">No clients found in your database.</p>
+                ) : filteredClients.map(c => (
+                  <button key={c.id} type="button" onClick={() => handleSelectClient(c)} className="w-full text-left p-4 rounded-2xl hover:bg-emerald-50 border border-transparent hover:border-emerald-100 transition-all flex flex-col group">
+                    <span className="font-bold text-slate-700 group-hover:text-emerald-700 transition-colors">{c.name}</span>
+                    <span className="text-xs text-slate-400">{c.email}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

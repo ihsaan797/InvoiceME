@@ -265,6 +265,15 @@ const Settings: React.FC<Props> = ({ business, updateBusiness }) => {
             <h3 className="text-base md:text-lg font-bold text-slate-800 border-l-4 border-blue-600 pl-4">Payment & Terms</h3>
             <div className="space-y-6">
               <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Default Payment Terms</label>
+                <input 
+                    value={details.defaultPaymentTerms || ''}
+                    onChange={(e) => setDetails({...details, defaultPaymentTerms: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
+                    placeholder="e.g. Net 7 Days, Due on Receipt"
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Payment Details (Bank Info)</label>
                 <textarea 
                     value={details.paymentDetails}

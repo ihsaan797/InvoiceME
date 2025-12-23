@@ -23,6 +23,7 @@ const INITIAL_STATE: AppState = {
     invoicePrefix: 'INV',
     quotationPrefix: 'QT',
     defaultTerms: '1. Please pay within 7 days.\n2. Goods once sold are not returnable.',
+    defaultPaymentTerms: 'Net 7 Days',
     paymentDetails: 'Bank: Bank of Maldives (BML)\nAccount Name: SANDPIX MALDIVES\nAccount Number: 7730000000001\nBranch: Main Branch',
     poweredByText: 'SANDPIX MALDIVES'
   },

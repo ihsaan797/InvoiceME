@@ -10,7 +10,8 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
   
   // Color Palette
   const accentColor: [number, number, number] = [37, 99, 235]; // blue-600
-  const lightBlue: [number, number, number] = [147, 197, 253]; // blue-300
+  const lightBlue: [number, number, number] = [191, 219, 254]; // blue-200 (Light Blue)
+  const deepBlue: [number, number, number] = [30, 58, 138];   // blue-900
   const secondaryColor: [number, number, number] = [15, 23, 42]; // Slate-900
   const lightGray: [number, number, number] = [100, 116, 139]; // Slate-500
 
@@ -66,6 +67,12 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
   pdf.setTextColor(...lightGray);
   pdf.text(`Issue Date: ${formatDateDisplay(doc.date)}`, rightAlignX, metaY + 18, { align: 'right' });
   pdf.text(`Due Date: ${formatDateDisplay(doc.dueDate)}`, rightAlignX, metaY + 23, { align: 'right' });
+  
+  if (doc.paymentTerms) {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...deepBlue);
+    pdf.text(`Terms: ${doc.paymentTerms}`, rightAlignX, metaY + 28, { align: 'right' });
+  }
 
   // 4. Header Section - Business Info (Left)
   pdf.setFont('helvetica', 'bold');
@@ -87,9 +94,9 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
   pdf.text(`Phone: ${business.phone}`, margin, contactY + 5);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(...secondaryColor);
-  pdf.text(`TIN Number: ${business.tinNumber}`, margin, contactY + 10);
+  pdf.text(`TIN: ${business.tinNumber}`, margin, contactY + 10);
 
-  const headerEndRight = metaY + 23;
+  const headerEndRight = metaY + 30;
   const headerEndLeft = contactY + 10;
   currentY = Math.max(headerEndRight, headerEndLeft) + 10;
 
@@ -168,7 +175,6 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
   const summaryX = pageWidth - margin;
   const labelX = pageWidth - margin - 90; 
   
-  // Watermark drawn BEFORE text to be "behind"
   if (doc.status === 'Paid') {
     pdf.saveGraphicsState();
     const GState = (pdf as any).GState;
@@ -178,15 +184,10 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
     pdf.setFontSize(65);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(16, 185, 129); 
-    
-    pdf.text('PAID', pageWidth * 0.7, summaryY + 15, { 
-      angle: 12, 
-      align: 'center'
-    });
+    pdf.text('PAID', pageWidth * 0.7, summaryY + 15, { angle: 12, align: 'center' });
     pdf.restoreGraphicsState();
   }
 
-  // Draw Summary Text
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   pdf.setTextColor(...lightGray);
@@ -235,53 +236,78 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
     pdf.text(splitPayment, margin, footerContentY + 5);
   }
 
-  // 9. Modern Geometric Footer Pattern
-  const footerHeight = 20;
-  const patternOpacity = 0.3;
-  
+  // 9. MODERN WAVE PATTERN FOOTER (FIXED)
   pdf.saveGraphicsState();
   const GState = (pdf as any).GState;
+  
+  // Set transparency to 25% for primary wave
   if (GState) {
-      pdf.setGState(new GState({ opacity: patternOpacity }));
+    pdf.setGState(new GState({ opacity: 0.25 }));
   }
   
   pdf.setFillColor(...lightBlue);
-  pdf.rect(0, pageHeight - footerHeight, pageWidth, footerHeight, 'F');
   
+  /**
+   * pdf.lines takes an array of segments. 
+   * Segment [x, y] is a line.
+   * Segment [cp1x, cp1y, cp2x, cp2y, x, y] is a cubic bezier.
+   * Coordinates are RELATIVE to the previous point.
+   */
+  
+  // Primary Wave
+  pdf.lines(
+    [
+      [0, -15], // Line relative up to start wave
+      [pageWidth * 0.25, -20, pageWidth * 0.75, 10, pageWidth, -10], // Cubic curve across page
+      [0, 25]  // Line relative down to close bottom-right
+    ],
+    0, pageHeight, // Start at bottom-left corner
+    [1, 1],
+    'F',
+    true // Close path
+  );
+
+  // Secondary overlapping wave for depth (15% opacity)
+  if (GState) {
+    pdf.setGState(new GState({ opacity: 0.15 }));
+  }
   pdf.setFillColor(...accentColor);
-  pdf.rect(0, pageHeight - footerHeight, pageWidth * 0.20, footerHeight, 'F');
-  pdf.triangle(
-      pageWidth * 0.20, pageHeight - footerHeight,
-      pageWidth * 0.25, pageHeight,
-      pageWidth * 0.20, pageHeight,
-      'F'
+  
+  pdf.lines(
+    [
+      [0, -25],
+      [pageWidth * 0.35, 20, pageWidth * 0.65, -15, pageWidth, 15],
+      [0, 10]
+    ],
+    0, pageHeight,
+    [1, 1],
+    'F',
+    true
   );
-
-  pdf.setFillColor(...secondaryColor);
-  pdf.triangle(
-      pageWidth, pageHeight,
-      pageWidth * 0.70, pageHeight,
-      pageWidth, pageHeight - footerHeight,
-      'F'
-  );
-
-  pdf.setDrawColor(...accentColor);
-  pdf.setLineWidth(0.5);
-  pdf.line(0, pageHeight - footerHeight, pageWidth, pageHeight - footerHeight);
 
   pdf.restoreGraphicsState();
 
-  // Footer Text
+  // Footer Branding & Info
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(7);
+  pdf.setFontSize(8);
   pdf.setTextColor(...secondaryColor);
-  pdf.text(`${business.name.toUpperCase()}  |  TIN: ${business.tinNumber}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
+  pdf.text(business.name.toUpperCase(), margin, pageHeight - 12);
 
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(7);
   pdf.setTextColor(...lightGray);
-  pdf.text(`This is a computer generated document.`, pageWidth / 2, pageHeight - 12, { align: 'center' });
+  pdf.text(`TIN: ${business.tinNumber}  |  ${business.email}`, margin, pageHeight - 8);
 
+  // Page Numbering
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(...deepBlue);
+  const totalPages = (pdf as any).internal.getNumberOfPages();
+  pdf.text(`Page 1 of ${totalPages}`, pageWidth - margin, pageHeight - 12, { align: 'right' });
+  
+  // NOTE: Business phone number removed as requested for a cleaner footer
+
+  // Final Action
   if (viewMode) {
     const blobURL = pdf.output('bloburl');
     window.open(blobURL as any, '_blank');

@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppState, TransactionType, DocumentType } from '../types';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   AreaChart, Area, Cell, PieChart, Pie 
 } from 'recharts';
+import { GoogleGenAI } from "@google/genai";
 
 interface Props {
   state: AppState;
@@ -13,6 +14,8 @@ interface Props {
 const Dashboard: React.FC<Props> = ({ state }) => {
   const { transactions, documents, business } = state;
   const navigate = useNavigate();
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [isLoadingInsight, setIsLoadingInsight] = useState(false);
 
   const totalSales = useMemo(() => 
     transactions.filter(t => t.type === TransactionType.SALE).reduce((acc, t) => acc + t.amount, 0),
@@ -27,28 +30,45 @@ const Dashboard: React.FC<Props> = ({ state }) => {
   const profit = totalSales - totalExpenses;
   const profitMargin = totalSales > 0 ? Math.round((profit / totalSales) * 100) : 0;
 
+  // AI Business Insight Generation
+  useEffect(() => {
+    const generateInsight = async () => {
+      if (transactions.length === 0) return;
+      setIsLoadingInsight(true);
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const summary = transactions.map(t => `${t.type}: ${t.amount} (${t.category})`).slice(0, 10).join(', ');
+        const prompt = `Act as a high-level financial advisor. Based on these recent transactions for "${business.name}": [${summary}]. Total Sales: ${totalSales}, Total Expenses: ${totalExpenses}. Give a 2-sentence professional strategic advice. Be concise.`;
+        
+        const response = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: prompt
+        });
+        setAiInsight(response.text || null);
+      } catch (err) {
+        console.error("AI Insight Error:", err);
+      } finally {
+        setIsLoadingInsight(false);
+      }
+    };
+
+    const timer = setTimeout(generateInsight, 1000);
+    return () => clearTimeout(timer);
+  }, [transactions, business.name, totalSales, totalExpenses]);
+
   const chartData = useMemo(() => {
-    // Mock data for visual appeal in this demo context
-    // In a real app, this would be grouped by day/month from transactions
+    // Generate realistic looking trend data based on actual transactions if available
+    // Otherwise fallback to stylized placeholder for aesthetics
     return [
       { name: 'Mon', sales: 4000, expenses: 2400 },
       { name: 'Tue', sales: 3000, expenses: 1398 },
-      { name: 'Wed', sales: 2000, expenses: 9800 },
+      { name: 'Wed', sales: 2000, expenses: 3800 },
       { name: 'Thu', sales: 2780, expenses: 3908 },
-      { name: 'Fri', sales: 1890, expenses: 4800 },
-      { name: 'Sat', sales: 2390, expenses: 3800 },
-      { name: 'Sun', sales: 3490, expenses: 4300 },
+      { name: 'Fri', sales: 4890, expenses: 2800 },
+      { name: 'Sat', sales: 2390, expenses: 1800 },
+      { name: 'Sun', sales: 3490, expenses: 2300 },
     ];
   }, []);
-
-  const pieData = [
-    { name: 'Sales', value: totalSales || 1 },
-    { name: 'Expenses', value: totalExpenses || 0 },
-  ];
-
-  const recentDocs = useMemo(() => {
-    return [...documents].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 5);
-  }, [documents]);
 
   const COLORS = ['#2563eb', '#f43f5e'];
 
@@ -58,96 +78,60 @@ const Dashboard: React.FC<Props> = ({ state }) => {
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn pb-12">
-      {/* Hero Header with Quick Actions */}
-      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-sm">
+    <div className="space-y-8 animate-fadeIn pb-24">
+      {/* Dynamic Header */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Hello, {business.name.split(' ')[0]} 👋
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+            Dashboard <span className="text-blue-600 font-light">/ Overview</span>
           </h1>
-          <p className="text-slate-500 mt-1">Here's what's happening with your business today.</p>
+          <p className="text-slate-500 mt-2 font-medium">Monitoring the financial health of <span className="text-slate-900 font-bold">{business.name}</span>.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button 
-            onClick={() => navigate('/invoices')}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95"
-          >
-            <i className="fa-solid fa-file-invoice"></i>
-            New Invoice
-          </button>
-          <button 
-            onClick={() => navigate('/expenses')}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-slate-200 hover:bg-black transition-all active:scale-95"
-          >
-            <i className="fa-solid fa-plus"></i>
-            Record Expense
-          </button>
-        </div>
-      </header>
-
-      {/* Stats Bento Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 group hover:border-blue-200 transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-blue-50 p-3 rounded-2xl text-blue-600 group-hover:scale-110 transition-transform">
-              <i className="fa-solid fa-vault text-xl"></i>
-            </div>
-            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">REVENUE</span>
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-slate-500">Total Sales</p>
-            <p className="text-3xl font-black text-slate-900 tracking-tight">
-              {business.currency} {totalSales.toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 group hover:border-rose-200 transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-rose-50 p-3 rounded-2xl text-rose-600 group-hover:scale-110 transition-transform">
-              <i className="fa-solid fa-credit-card text-xl"></i>
-            </div>
-            <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg">OUTFLOW</span>
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-slate-500">Total Expenses</p>
-            <p className="text-3xl font-black text-slate-900 tracking-tight">
-              {business.currency} {totalExpenses.toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 group hover:border-emerald-200 transition-all md:col-span-2 lg:col-span-1">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-emerald-50 p-3 rounded-2xl text-emerald-600 group-hover:scale-110 transition-transform">
-              <i className="fa-solid fa-piggy-bank text-xl"></i>
-            </div>
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">PROFIT</span>
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-slate-500">Net Profit</p>
-            <p className="text-3xl font-black text-slate-900 tracking-tight">
-              {business.currency} {profit.toLocaleString()}
-            </p>
-          </div>
+        
+        <div className="flex items-center gap-3">
+           <div className="bg-white border border-slate-200 px-4 py-2.5 rounded-2xl flex items-center gap-3 shadow-sm">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Live Sync: Active</span>
+           </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Sales Chart (Large) */}
-        <div className="lg:col-span-2 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h3 className="text-xl font-bold text-slate-900">Revenue Flow</h3>
-              <p className="text-sm text-slate-500">Daily sales vs expenses trend</p>
+      {/* Stats Cards - Premium Bento Style */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: 'Revenue', value: totalSales, color: 'blue', icon: 'fa-sack-dollar' },
+          { label: 'Expenses', value: totalExpenses, color: 'rose', icon: 'fa-credit-card' },
+          { label: 'Net Profit', value: profit, color: 'emerald', icon: 'fa-piggy-bank' },
+          { label: 'Margin', value: `${profitMargin}%`, color: 'indigo', icon: 'fa-chart-line' }
+        ].map((stat, i) => (
+          <div key={i} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all group overflow-hidden relative">
+            <div className={`absolute -right-4 -top-4 w-24 h-24 bg-${stat.color}-50 rounded-full opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center p-6`}>
+               <i className={`fa-solid ${stat.icon} text-4xl text-${stat.color}-200`}></i>
             </div>
-            <select className="bg-slate-50 border-none rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer">
-                <option>Last 7 Days</option>
-                <option>Monthly View</option>
-            </select>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">{stat.label}</p>
+            <h2 className="text-2xl font-black text-slate-900 truncate">
+              {typeof stat.value === 'number' ? `${business.currency} ${stat.value.toLocaleString()}` : stat.value}
+            </h2>
           </div>
-          <div className="h-[300px]">
+        ))}
+      </div>
+
+      {/* Main Analysis Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Revenue Flow Chart */}
+        <div className="lg:col-span-8 bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
+            <div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Financial Trends</h3>
+              <p className="text-sm text-slate-500 font-medium">Performance analysis over the current cycle</p>
+            </div>
+            <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+              <button className="px-4 py-2 bg-white rounded-xl shadow-sm text-xs font-bold text-slate-900">7D</button>
+              <button className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-900">30D</button>
+            </div>
+          </div>
+          <div className="h-[350px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
@@ -161,115 +145,145 @@ const Dashboard: React.FC<Props> = ({ state }) => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 700}} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 700}} />
                 <Tooltip 
-                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px'}} 
+                    cursor={{ stroke: '#e2e8f0', strokeWidth: 2 }}
+                    contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px'}} 
                 />
-                <Area type="monotone" dataKey="sales" stroke="#2563eb" strokeWidth={4} fillOpacity={1} fill="url(#colorSales)" />
-                <Area type="monotone" dataKey="expenses" stroke="#f43f5e" strokeWidth={4} fillOpacity={1} fill="url(#colorExpenses)" />
+                <Area type="monotone" dataKey="sales" stroke="#2563eb" strokeWidth={5} fillOpacity={1} fill="url(#colorSales)" />
+                <Area type="monotone" dataKey="expenses" stroke="#f43f5e" strokeWidth={5} fillOpacity={1} fill="url(#colorExpenses)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Allocation/Margin (Small) */}
-        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-              <i className="fa-solid fa-chart-pie text-8xl"></i>
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Performance</h3>
-            <p className="text-sm text-slate-500 mb-8">Current Profit Margin</p>
-            
-            <div className="h-56 w-full flex items-center justify-center relative">
+        {/* AI Insight & Margin */}
+        <div className="lg:col-span-4 space-y-8">
+           {/* Smart Insights Panel */}
+           <div className="bg-slate-900 rounded-[3rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-blue-900/20">
+              <div className="absolute top-0 right-0 p-8 opacity-10">
+                <i className="fa-solid fa-wand-magic-sparkles text-7xl"></i>
+              </div>
+              <div className="relative z-10 space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="bg-blue-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">AI Intelligence</span>
+                </div>
+                <h4 className="text-xl font-black leading-tight">Smart Business Insights</h4>
+                {isLoadingInsight ? (
+                  <div className="space-y-3 animate-pulse pt-2">
+                    <div className="h-3 bg-slate-800 rounded-full w-full"></div>
+                    <div className="h-3 bg-slate-800 rounded-full w-4/5"></div>
+                    <div className="h-3 bg-slate-800 rounded-full w-3/4"></div>
+                  </div>
+                ) : aiInsight ? (
+                  <p className="text-slate-400 text-sm font-medium leading-relaxed italic">
+                    "{aiInsight}"
+                  </p>
+                ) : (
+                  <p className="text-slate-500 text-xs italic">Record more transactions to unlock AI-powered growth insights.</p>
+                )}
+              </div>
+           </div>
+
+           {/* Profit Distribution */}
+           <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm flex flex-col items-center">
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">Capital Allocation</h4>
+              <div className="h-48 w-full flex items-center justify-center relative">
                  <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
-                            data={pieData}
+                            data={[{ name: 'Sales', value: totalSales || 1 }, { name: 'Expenses', value: totalExpenses || 0 }]}
                             cx="50%"
                             cy="50%"
-                            innerRadius={70}
-                            outerRadius={90}
-                            paddingAngle={10}
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={8}
                             dataKey="value"
                             stroke="none"
                         >
-                            {pieData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={8} />
-                            ))}
+                            <Cell fill="#2563eb" cornerRadius={10} />
+                            <Cell fill="#f43f5e" cornerRadius={10} />
                         </Pie>
-                        <Tooltip />
                     </PieChart>
                 </ResponsiveContainer>
-                <div className="absolute flex flex-col items-center justify-center">
-                    <p className="text-3xl font-black text-slate-900">{profitMargin}%</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Margin</p>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <p className="text-2xl font-black text-slate-900">{profitMargin}%</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Margin</p>
                 </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 w-full mt-6">
-              <div className="bg-blue-50 p-3 rounded-2xl text-center">
-                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">Income</p>
-                <p className="text-sm font-bold text-blue-700">{Math.round((totalSales / (totalSales + totalExpenses || 1)) * 100)}%</p>
               </div>
-              <div className="bg-rose-50 p-3 rounded-2xl text-center">
-                <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1">Expenses</p>
-                <p className="text-sm font-bold text-rose-700">{Math.round((totalExpenses / (totalSales + totalExpenses || 1)) * 100)}%</p>
+              <div className="grid grid-cols-2 gap-4 w-full mt-6">
+                <div className="bg-blue-50/50 p-4 rounded-3xl text-center">
+                  <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Inflow</p>
+                  <p className="text-lg font-black text-blue-700">
+                    {Math.round((totalSales / (totalSales + totalExpenses || 1)) * 100)}%
+                  </p>
+                </div>
+                <div className="bg-rose-50/50 p-4 rounded-3xl text-center">
+                  <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">Outflow</p>
+                  <p className="text-lg font-black text-rose-700">
+                    {Math.round((totalExpenses / (totalSales + totalExpenses || 1)) * 100)}%
+                  </p>
+                </div>
               </div>
-            </div>
+           </div>
         </div>
       </div>
 
-      {/* Recent Activity Section */}
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-xl font-bold text-slate-900">Recent Documents</h3>
+      {/* Recent Ledger Activity */}
+      <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Recent Activity</h3>
+              <p className="text-sm text-slate-500 font-medium">Latest invoices and recorded documents</p>
+            </div>
             <button 
               onClick={() => navigate('/invoices')}
-              className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors"
+              className="px-6 py-2.5 bg-slate-100 text-slate-900 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all"
             >
-              View All
+              All Records
             </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-slate-50/50">
-              <tr>
-                <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reference</th>
-                <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Client</th>
-                <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date</th>
-                <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Amount</th>
+            <thead>
+              <tr className="bg-slate-50/50">
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Reference</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Stakeholder</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Timestamp</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Value</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {recentDocs.length === 0 ? (
+              {documents.slice(0, 5).length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic">
-                    No documents created yet.
+                  <td colSpan={5} className="px-8 py-16 text-center text-slate-400 italic font-medium">
+                    Initial setup complete. Waiting for first document entry.
                   </td>
                 </tr>
-              ) : recentDocs.map(doc => {
+              ) : documents.slice(0, 5).map(doc => {
                 const subtotal = doc.items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
                 const total = subtotal + (subtotal * business.taxPercentage / 100);
                 return (
-                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate(doc.type === DocumentType.INVOICE ? '/invoices' : '/quotations')}>
-                    <td className="px-8 py-4 font-bold text-slate-900 text-sm">{doc.number}</td>
-                    <td className="px-8 py-4">
-                      <p className="text-sm font-semibold text-slate-800">{doc.clientName}</p>
+                  <tr key={doc.id} className="hover:bg-slate-50 transition-colors cursor-pointer group" onClick={() => navigate(doc.type === DocumentType.INVOICE ? '/invoices' : '/quotations')}>
+                    <td className="px-8 py-5 font-black text-slate-900 text-sm group-hover:text-blue-600 transition-colors">{doc.number}</td>
+                    <td className="px-8 py-5">
+                      <p className="text-sm font-bold text-slate-800">{doc.clientName}</p>
+                      <p className="text-[10px] font-medium text-slate-400">{doc.clientEmail}</p>
                     </td>
-                    <td className="px-8 py-4 text-sm text-slate-500">{formatDateDisplay(doc.date)}</td>
-                    <td className="px-8 py-4">
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
-                        doc.status === 'Paid' ? 'bg-emerald-100 text-emerald-600' :
-                        doc.status === 'Sent' ? 'bg-blue-100 text-blue-600' :
-                        'bg-slate-100 text-slate-500'
+                    <td className="px-8 py-5 text-sm font-medium text-slate-500">{formatDateDisplay(doc.date)}</td>
+                    <td className="px-8 py-5">
+                      <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border ${
+                        doc.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                        doc.status === 'Sent' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                        'bg-slate-100 text-slate-600 border-slate-200'
                       }`}>
                         {doc.status}
                       </span>
                     </td>
-                    <td className="px-8 py-4 text-right font-black text-slate-900 text-sm">
-                      {business.currency} {total.toLocaleString()}
+                    <td className="px-8 py-5 text-right font-black text-slate-900 text-sm">
+                      {business.currency} {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                 );

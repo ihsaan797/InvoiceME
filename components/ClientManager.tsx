@@ -118,155 +118,227 @@ const ClientManager: React.FC<Props> = ({ state, addClient, addClients, updateCl
     setTimeout(() => setSyncMsg(null), 5000);
   };
 
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+  };
+
   return (
-    <div className="space-y-6 animate-fadeIn pb-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-8 animate-fadeIn pb-12">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Clients</h1>
-          <p className="text-sm text-slate-500">Manage your predefined client database.</p>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Client Database</h1>
+          <p className="text-slate-500 mt-1">Manage and organize your client relationships.</p>
         </div>
-        <div className="flex flex-col sm:flex-row w-full md:w-auto items-stretch sm:items-center gap-3">
-          <div className="relative flex-1 md:w-64">
+        <div className="flex flex-col sm:flex-row w-full lg:w-auto items-stretch sm:items-center gap-3">
+          <div className="relative flex-1 lg:w-72">
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <input 
               type="text"
-              placeholder="Search clients..."
+              placeholder="Search by name or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-sm"
+              className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-sm"
             />
           </div>
           <button 
             onClick={handleSyncFromDocs}
-            className="bg-blue-50 text-blue-600 px-5 py-2.5 rounded-xl font-semibold hover:bg-blue-100 transition-all flex items-center justify-center gap-2 whitespace-nowrap text-sm"
+            className="bg-white text-blue-600 border border-blue-100 px-5 py-3 rounded-2xl font-bold hover:bg-blue-50 transition-all flex items-center justify-center gap-2 whitespace-nowrap text-sm"
           >
-            <i className="fa-solid fa-rotate"></i>
-            Sync from Docs
+            <i className="fa-solid fa-cloud-arrow-down"></i>
+            Sync History
           </button>
           <button 
             onClick={() => { resetForm(); setShowModal(true); }}
-            className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-black transition-all flex items-center justify-center gap-2 whitespace-nowrap text-sm"
+            className="bg-slate-900 text-white px-5 py-3 rounded-2xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 whitespace-nowrap text-sm shadow-xl shadow-slate-200"
           >
             <i className="fa-solid fa-user-plus"></i>
-            New Client
+            Add Client
           </button>
         </div>
       </div>
 
       {syncMsg && (
-        <div className="bg-blue-50 border border-blue-100 text-blue-700 px-4 py-3 rounded-xl flex items-center gap-3 text-sm animate-fadeIn">
-          <i className="fa-solid fa-circle-info"></i>
-          {syncMsg}
+        <div className="bg-blue-50 border border-blue-100 text-blue-700 px-5 py-4 rounded-2xl flex items-center gap-3 text-sm animate-fadeIn shadow-sm">
+          <div className="bg-blue-100 p-2 rounded-lg">
+            <i className="fa-solid fa-circle-info"></i>
+          </div>
+          <span className="font-medium">{syncMsg}</span>
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[600px]">
-            <thead className="bg-slate-50 border-b border-slate-100">
-              <tr>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-600 uppercase">Client Info</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-600 uppercase">Contact</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-600 uppercase">Address</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-600 uppercase text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredClients.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
-                    <i className="fa-solid fa-users-slash text-4xl mb-3 block"></i>
-                    {searchTerm ? 'No matching clients.' : 'No clients predefined yet.'}
-                  </td>
-                </tr>
-              ) : filteredClients.map(client => (
-                <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-slate-900 text-sm">{client.name}</div>
-                    <div className="text-xs text-slate-500">{client.email}</div>
-                  </td>
-                  <td className="px-6 py-4 text-slate-700 text-sm">{client.phone || '-'}</td>
-                  <td className="px-6 py-4 text-slate-500 text-xs max-w-[200px] truncate" title={client.address}>{client.address || '-'}</td>
-                  <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
-                    <button onClick={() => handleEdit(client)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
-                      <i className="fa-solid fa-pencil"></i>
-                    </button>
-                    <button onClick={() => deleteClient(client.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
-                      <i className="fa-solid fa-trash"></i>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {filteredClients.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-slate-100 p-16 text-center shadow-sm">
+          <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i className="fa-solid fa-users-slash text-3xl text-slate-300"></i>
+          </div>
+          <h3 className="text-xl font-bold text-slate-900">No clients found</h3>
+          <p className="text-slate-500 mt-2 max-w-xs mx-auto">
+            {searchTerm 
+              ? `We couldn't find any results for "${searchTerm}".` 
+              : "Your client list is currently empty. Start by adding your first client."}
+          </p>
+          {searchTerm && (
+            <button 
+              onClick={() => setSearchTerm('')}
+              className="mt-6 text-blue-600 font-bold hover:underline"
+            >
+              Clear Search
+            </button>
+          )}
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredClients.map(client => (
+            <div 
+              key={client.id} 
+              className="bg-white rounded-3xl border border-slate-100 p-6 hover:shadow-xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden flex flex-col"
+            >
+              {/* Card Decoration */}
+              <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform">
+                <i className="fa-solid fa-user-tie text-8xl"></i>
+              </div>
+
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-slate-200 shrink-0">
+                  {getInitials(client.name)}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-slate-900 text-lg truncate" title={client.name}>
+                    {client.name}
+                  </h3>
+                  <p className="text-slate-500 text-sm truncate">{client.email}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4 flex-1">
+                <div className="flex items-start gap-3">
+                  <div className="bg-slate-50 p-2 rounded-xl text-slate-400 group-hover:text-blue-500 transition-colors">
+                    <i className="fa-solid fa-phone text-xs"></i>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Phone</p>
+                    <p className="text-slate-700 text-sm font-medium">{client.phone || 'Not provided'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="bg-slate-50 p-2 rounded-xl text-slate-400 group-hover:text-emerald-500 transition-colors">
+                    <i className="fa-solid fa-location-dot text-xs"></i>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Address</p>
+                    <p className="text-slate-700 text-sm font-medium line-clamp-2" title={client.address}>
+                      {client.address || 'No address saved'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between gap-3">
+                <button 
+                  onClick={() => handleEdit(client)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold text-xs hover:bg-blue-100 transition-colors"
+                >
+                  <i className="fa-solid fa-pencil"></i>
+                  Edit
+                </button>
+                <button 
+                  onClick={() => deleteClient(client.id)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-50 text-rose-600 rounded-xl font-bold text-xs hover:bg-rose-100 transition-colors"
+                >
+                  <i className="fa-solid fa-trash-can"></i>
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-slideUp">
-            <div className="p-5 md:p-6 border-b border-slate-100 flex justify-between items-center bg-white">
-              <h2 className="text-lg md:text-xl font-bold text-slate-900">{editingId ? 'Edit' : 'Create'} Client</h2>
-              <button onClick={() => resetForm()} className="text-slate-400 hover:text-slate-600 p-2">
-                <i className="fa-solid fa-xmark"></i>
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-slideUp">
+            <div className="p-6 md:p-8 border-b border-slate-100 flex justify-between items-center bg-white">
+              <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+                {editingId ? 'Edit Profile' : 'New Client'}
+              </h2>
+              <button onClick={() => resetForm()} className="text-slate-400 hover:text-slate-600 p-2 transition-colors">
+                <i className="fa-solid fa-xmark text-xl"></i>
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-5 md:p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-5">
               {errorMsg && (
-                <div className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-2">
-                  <i className="fa-solid fa-triangle-exclamation"></i>
+                <div className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fadeIn">
+                  <i className="fa-solid fa-triangle-exclamation text-sm"></i>
                   {errorMsg}
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Client Name</label>
-                <input 
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm" 
-                  placeholder="e.g. Acme Corp"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email Address</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Full Name / Company</label>
                   <input 
                     required
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm" 
-                    placeholder="client@example.com"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm transition-all" 
+                    placeholder="e.g. John Doe or SANDPIX"
                   />
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Email Address</label>
+                    <input 
+                      required
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm transition-all" 
+                      placeholder="client@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Phone</label>
+                    <input 
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm transition-all" 
+                      placeholder="+960 ..."
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phone (Optional)</label>
-                  <input 
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm" 
-                    placeholder="+1 234 ..."
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Physical Address</label>
+                  <textarea 
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm min-h-[100px] transition-all resize-none" 
+                    placeholder="Enter detailed address..."
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Physical Address</label>
-                <textarea 
-                  value={formData.address}
-                  onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm min-h-[80px]" 
-                  placeholder="Street, City, Postcode..."
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => resetForm()} className="px-5 py-2.5 border border-slate-200 rounded-xl text-slate-600 font-semibold hover:bg-slate-50 text-sm">
+
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-slate-50">
+                <button 
+                  type="button" 
+                  onClick={() => resetForm()} 
+                  className="px-6 py-3.5 border border-slate-200 rounded-2xl text-slate-600 font-bold hover:bg-slate-50 text-sm transition-colors"
+                >
                   Cancel
                 </button>
-                <button type="submit" className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 text-sm">
-                  {editingId ? 'Update Client' : 'Save Client'}
+                <button 
+                  type="submit" 
+                  className="px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-blue-700 text-sm transition-all active:scale-95"
+                >
+                  {editingId ? 'Update Client' : 'Save Contact'}
                 </button>
               </div>
             </form>

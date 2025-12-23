@@ -21,6 +21,7 @@ export interface BusinessDetails {
   quotationPrefix: string;
   logoUrl?: string;
   defaultTerms?: string;
+  defaultPaymentTerms?: string;
   paymentDetails?: string;
   poweredByText?: string;
 }
@@ -52,6 +53,7 @@ export interface Document {
   number: string;
   date: string;
   dueDate: string;
+  paymentTerms?: string;
   clientName: string;
   clientEmail: string;
   items: LineItem[];
