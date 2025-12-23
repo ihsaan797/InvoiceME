@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -7,7 +8,8 @@ import TransactionManager from './components/TransactionManager';
 import CatalogManager from './components/CatalogManager';
 import ClientManager from './components/ClientManager';
 import Settings from './components/Settings';
-import { AppState, DocumentType, TransactionType, Document, Transaction, CatalogItem, Client } from './types';
+import { AppState, DocumentType, TransactionType, Document, Transaction, CatalogItem, Client, BusinessDetails } from './types';
+import { supabase } from './lib/supabase';
 
 const INITIAL_STATE: AppState = {
   business: {
@@ -31,115 +33,162 @@ const INITIAL_STATE: AppState = {
 
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [state, setState] = useState<AppState>(() => {
-    const saved = localStorage.getItem('bizflow_state');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Migrations
-      if (!parsed.catalog) parsed.catalog = [];
-      if (!parsed.clients) parsed.clients = [];
-      if (!parsed.business.invoicePrefix) parsed.business.invoicePrefix = 'INV';
-      if (!parsed.business.quotationPrefix) parsed.business.quotationPrefix = 'QT';
-      return parsed;
-    }
-    return INITIAL_STATE;
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [state, setState] = useState<AppState>(INITIAL_STATE);
 
+  // Initial Data Fetch from Supabase
   useEffect(() => {
-    localStorage.setItem('bizflow_state', JSON.stringify(state));
-  }, [state]);
+    const fetchAllData = async () => {
+      setIsLoading(true);
+      try {
+        const [
+          { data: businessData },
+          { data: docsData },
+          { data: txsData },
+          { data: catalogData },
+          { data: clientsData }
+        ] = await Promise.all([
+          supabase.from('business_settings').select('*').single(),
+          supabase.from('documents').select('*'),
+          supabase.from('transactions').select('*'),
+          supabase.from('catalog_items').select('*'),
+          supabase.from('clients').select('*')
+        ]);
 
-  const updateBusiness = (business: AppState['business']) => {
+        setState({
+          business: businessData || INITIAL_STATE.business,
+          documents: docsData || [],
+          transactions: txsData || [],
+          catalog: catalogData || [],
+          clients: clientsData || []
+        });
+      } catch (err) {
+        console.error("Failed to fetch data from Supabase:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAllData();
+  }, []);
+
+  const updateBusiness = async (business: BusinessDetails) => {
     setState(prev => ({ ...prev, business }));
+    await supabase.from('business_settings').upsert({ id: 1, ...business });
   };
 
-  const addDocument = (doc: Document) => {
+  const addDocument = async (doc: Document) => {
     setState(prev => ({ ...prev, documents: [doc, ...prev.documents] }));
+    await supabase.from('documents').insert(doc);
   };
 
-  const updateDocument = (doc: Document) => {
+  const updateDocument = async (doc: Document) => {
     setState(prev => ({
       ...prev,
       documents: prev.documents.map(d => d.id === doc.id ? doc : d)
     }));
+    await supabase.from('documents').update(doc).eq('id', doc.id);
   };
 
-  const updateDocumentStatus = (id: string, status: 'Draft' | 'Sent' | 'Paid' | 'Expired') => {
-      setState(prev => {
-          const doc = prev.documents.find(d => d.id === id);
-          if (!doc) return prev;
+  const updateDocumentStatus = async (id: string, status: 'Draft' | 'Sent' | 'Paid' | 'Expired') => {
+      const doc = state.documents.find(d => d.id === id);
+      if (!doc) return;
 
-          let newTransactions = prev.transactions;
-          if (doc.type === DocumentType.INVOICE && status === 'Paid' && doc.status !== 'Paid') {
-              const subtotal = doc.items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
-              const taxAmount = (subtotal * prev.business.taxPercentage) / 100;
-              const total = subtotal + taxAmount;
+      let newTransaction: Transaction | null = null;
+      if (doc.type === DocumentType.INVOICE && status === 'Paid' && doc.status !== 'Paid') {
+          const subtotal = doc.items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
+          const taxAmount = (subtotal * state.business.taxPercentage) / 100;
+          const total = subtotal + taxAmount;
 
-              const newSale: Transaction = {
-                  id: `sale-inv-${doc.id}-${Date.now()}`,
-                  type: TransactionType.SALE,
-                  date: new Date().toISOString().split('T')[0],
-                  category: 'Product Sales',
-                  amount: total,
-                  description: `Payment for Invoice ${doc.number}`,
-                  reference: doc.number
-              };
-              newTransactions = [newSale, ...prev.transactions];
-          }
-
-          return {
-              ...prev,
-              documents: prev.documents.map(d => d.id === id ? { ...d, status } : d),
-              transactions: newTransactions
+          newTransaction = {
+              id: `sale-inv-${doc.id}-${Date.now()}`,
+              type: TransactionType.SALE,
+              date: new Date().toISOString().split('T')[0],
+              category: 'Product Sales',
+              amount: total,
+              description: `Payment for Invoice ${doc.number}`,
+              reference: doc.number
           };
-      });
+      }
+
+      setState(prev => ({
+          ...prev,
+          documents: prev.documents.map(d => d.id === id ? { ...d, status } : d),
+          transactions: newTransaction ? [newTransaction, ...prev.transactions] : prev.transactions
+      }));
+
+      await supabase.from('documents').update({ status }).eq('id', id);
+      if (newTransaction) {
+          await supabase.from('transactions').insert(newTransaction);
+      }
   };
 
-  const deleteDocument = (id: string) => {
+  const deleteDocument = async (id: string) => {
     setState(prev => ({ ...prev, documents: prev.documents.filter(d => d.id !== id) }));
+    await supabase.from('documents').delete().eq('id', id);
   };
 
-  const addTransaction = (tx: Transaction) => {
+  const addTransaction = async (tx: Transaction) => {
     setState(prev => ({ ...prev, transactions: [tx, ...prev.transactions] }));
+    await supabase.from('transactions').insert(tx);
   };
 
-  const deleteTransaction = (id: string) => {
+  const deleteTransaction = async (id: string) => {
     setState(prev => ({ ...prev, transactions: prev.transactions.filter(t => t.id !== id) }));
+    await supabase.from('transactions').delete().eq('id', id);
   };
 
-  const addCatalogItem = (item: CatalogItem) => {
+  const addCatalogItem = async (item: CatalogItem) => {
     setState(prev => ({ ...prev, catalog: [item, ...prev.catalog] }));
+    await supabase.from('catalog_items').insert(item);
   };
 
-  const updateCatalogItem = (item: CatalogItem) => {
+  const updateCatalogItem = async (item: CatalogItem) => {
     setState(prev => ({
       ...prev,
       catalog: prev.catalog.map(i => i.id === item.id ? item : i)
     }));
+    await supabase.from('catalog_items').update(item).eq('id', item.id);
   };
 
-  const deleteCatalogItem = (id: string) => {
+  const deleteCatalogItem = async (id: string) => {
     setState(prev => ({ ...prev, catalog: prev.catalog.filter(i => i.id !== id) }));
+    await supabase.from('catalog_items').delete().eq('id', id);
   };
 
-  const addClient = (client: Client) => {
+  const addClient = async (client: Client) => {
     setState(prev => ({ ...prev, clients: [client, ...prev.clients] }));
+    await supabase.from('clients').insert(client);
   };
 
-  const addClients = (newClients: Client[]) => {
+  const addClients = async (newClients: Client[]) => {
     setState(prev => ({ ...prev, clients: [...newClients, ...prev.clients] }));
+    await supabase.from('clients').insert(newClients);
   };
 
-  const updateClient = (client: Client) => {
+  const updateClient = async (client: Client) => {
     setState(prev => ({
       ...prev,
       clients: prev.clients.map(c => c.id === client.id ? client : c)
     }));
+    await supabase.from('clients').update(client).eq('id', client.id);
   };
 
-  const deleteClient = (id: string) => {
+  const deleteClient = async (id: string) => {
     setState(prev => ({ ...prev, clients: prev.clients.filter(c => c.id !== id) }));
+    await supabase.from('clients').delete().eq('id', id);
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50">
+        <div className="bg-blue-600 p-3 rounded-2xl text-white animate-bounce mb-4">
+          <i className="fa-solid fa-bolt text-3xl"></i>
+        </div>
+        <p className="text-slate-500 font-medium animate-pulse">Syncing with Supabase...</p>
+      </div>
+    );
+  }
 
   return (
     <HashRouter>
@@ -147,7 +196,6 @@ const App: React.FC = () => {
         <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
         
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Mobile Header */}
           <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
             <div className="flex items-center gap-2">
               <div className="bg-blue-600 p-1.5 rounded-lg text-white">
@@ -158,7 +206,6 @@ const App: React.FC = () => {
             <button 
               onClick={() => setIsSidebarOpen(true)}
               className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              aria-label="Open menu"
             >
               <i className="fa-solid fa-bars text-xl"></i>
             </button>
