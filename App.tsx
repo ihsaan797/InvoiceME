@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Sidebar from './components/Sidebar';
-import Dashboard from './components/Dashboard';
-import DocumentManager from './components/DocumentManager';
-import TransactionManager from './components/TransactionManager';
-import CatalogManager from './components/CatalogManager';
-import ClientManager from './components/ClientManager';
-import Settings from './components/Settings';
-import UserManager from './components/UserManager';
-import Login from './components/Login';
-import { AppState, DocumentType, TransactionType, Document, Transaction, CatalogItem, Client, BusinessDetails, User } from './types';
-import { supabase } from './lib/supabase';
+import Sidebar from './components/Sidebar.tsx';
+import Dashboard from './components/Dashboard.tsx';
+import DocumentManager from './components/DocumentManager.tsx';
+import TransactionManager from './components/TransactionManager.tsx';
+import CatalogManager from './components/CatalogManager.tsx';
+import ClientManager from './components/ClientManager.tsx';
+import Settings from './components/Settings.tsx';
+import UserManager from './components/UserManager.tsx';
+import Login from './components/Login.tsx';
+import { AppState, DocumentType, TransactionType, Document, Transaction, CatalogItem, Client, BusinessDetails, User } from './types.ts';
+import { supabase } from './lib/supabase.ts';
 
 const INITIAL_STATE: AppState = {
   business: {
