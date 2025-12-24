@@ -50,7 +50,7 @@ const Sidebar: React.FC<Props> = ({ isOpen, setIsOpen, business, currentUser, on
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight leading-none">Invoice ME</h1>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-400">Ledger v2.0</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.15em] text-blue-400">SANDPIX MALDIVES</span>
             </div>
           </div>
           <button 
