@@ -89,7 +89,7 @@ const TransactionManager: React.FC<Props> = ({ type, state, addTransaction, dele
         
         <div className="flex flex-col sm:flex-row w-full lg:w-auto items-stretch sm:items-center gap-3">
           <div className="relative flex-1 lg:w-72">
-            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1-2 text-slate-400"></i>
+            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <input 
               type="text"
               placeholder={`Search records...`}

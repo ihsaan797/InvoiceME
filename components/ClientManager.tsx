@@ -28,7 +28,7 @@ const ClientManager: React.FC<Props> = ({ state, addClient, addClients, updateCl
     const term = searchTerm.toLowerCase();
     return state.clients.filter(c => 
       c.name.toLowerCase().includes(term) || 
-      c.email.toLowerCase().includes(term)
+      (c.email && c.email.toLowerCase().includes(term))
     );
   }, [state.clients, searchTerm]);
 
@@ -42,7 +42,7 @@ const ClientManager: React.FC<Props> = ({ state, addClient, addClients, updateCl
   const handleEdit = (client: Client) => {
     setFormData({
       name: client.name,
-      email: client.email,
+      email: client.email || '',
       phone: client.phone,
       address: client.address
     });
@@ -58,7 +58,7 @@ const ClientManager: React.FC<Props> = ({ state, addClient, addClients, updateCl
     const isDuplicate = state.clients.some(c => 
       c.id !== editingId && (
         c.name.toLowerCase() === formData.name.toLowerCase() || 
-        c.email.toLowerCase() === formData.email.toLowerCase()
+        (formData.email.trim() !== '' && c.email?.toLowerCase() === formData.email.toLowerCase())
       )
     );
 
@@ -76,11 +76,11 @@ const ClientManager: React.FC<Props> = ({ state, addClient, addClients, updateCl
   };
 
   const handleSyncFromDocs = () => {
-    const clientsInDocs = new Map<string, { name: string, email: string }>();
+    const clientsInDocs = new Map<string, { name: string, email?: string }>();
     
     // Extract unique name/email pairs from documents
     state.documents.forEach(doc => {
-      const key = `${doc.clientName.toLowerCase()}|${doc.clientEmail.toLowerCase()}`;
+      const key = `${doc.clientName.toLowerCase()}|${(doc.clientEmail || '').toLowerCase()}`;
       if (!clientsInDocs.has(key)) {
         clientsInDocs.set(key, { name: doc.clientName, email: doc.clientEmail });
       }
@@ -92,7 +92,7 @@ const ClientManager: React.FC<Props> = ({ state, addClient, addClients, updateCl
     clientsInDocs.forEach(item => {
       const exists = state.clients.some(c => 
         c.name.toLowerCase() === item.name.toLowerCase() || 
-        c.email.toLowerCase() === item.email.toLowerCase()
+        (item.email && c.email?.toLowerCase() === item.email.toLowerCase())
       );
 
       if (!exists) {
@@ -211,7 +211,7 @@ const ClientManager: React.FC<Props> = ({ state, addClient, addClients, updateCl
                   <h3 className="font-bold text-slate-900 text-lg truncate" title={client.name}>
                     {client.name}
                   </h3>
-                  <p className="text-slate-500 text-sm truncate">{client.email}</p>
+                  <p className="text-slate-500 text-sm truncate">{client.email || 'No email saved'}</p>
                 </div>
               </div>
 
@@ -293,9 +293,8 @@ const ClientManager: React.FC<Props> = ({ state, addClient, addClients, updateCl
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Email Address</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Email Address (Optional)</label>
                     <input 
-                      required
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({...formData, email: e.target.value})}

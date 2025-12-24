@@ -107,10 +107,12 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
   pdf.setFontSize(12);
   pdf.text(doc.clientName, margin, currentY + 7);
   
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(...lightGray);
-  pdf.text(doc.clientEmail, margin, currentY + 13);
+  if (doc.clientEmail) {
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.setTextColor(...lightGray);
+    pdf.text(doc.clientEmail, margin, currentY + 13);
+  }
 
   // 7. Main Table
   const tableHeaders = [['DESCRIPTION', 'QTY', 'UNIT PRICE', 'TOTAL']];

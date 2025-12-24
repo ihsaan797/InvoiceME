@@ -1,26 +1,31 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BusinessDetails } from '../types';
+import { BusinessDetails, User } from '../types';
 
 interface Props {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   business: BusinessDetails;
+  currentUser: User;
+  onLogout: () => void;
 }
 
-const Sidebar: React.FC<Props> = ({ isOpen, setIsOpen, business }) => {
+const Sidebar: React.FC<Props> = ({ isOpen, setIsOpen, business, currentUser, onLogout }) => {
   const location = useLocation();
 
   const navItems = [
-    { name: 'Dashboard', icon: 'fa-chart-pie', path: '/' },
-    { name: 'Quotations', icon: 'fa-file-lines', path: '/quotations' },
-    { name: 'Invoices', icon: 'fa-file-invoice-dollar', path: '/invoices' },
-    { name: 'Clients', icon: 'fa-users', path: '/clients' },
-    { name: 'Catalog', icon: 'fa-boxes-stacked', path: '/catalog' },
-    { name: 'Sales', icon: 'fa-money-bill-trend-up', path: '/sales' },
-    { name: 'Expenses', icon: 'fa-receipt', path: '/expenses' },
-    { name: 'Settings', icon: 'fa-gear', path: '/settings' },
+    { name: 'Dashboard', icon: 'fa-chart-pie', path: '/', roles: ['admin', 'user'] },
+    { name: 'Quotations', icon: 'fa-file-lines', path: '/quotations', roles: ['admin', 'user'] },
+    { name: 'Invoices', icon: 'fa-file-invoice-dollar', path: '/invoices', roles: ['admin', 'user'] },
+    { name: 'Clients', icon: 'fa-users', path: '/clients', roles: ['admin', 'user'] },
+    { name: 'Catalog', icon: 'fa-boxes-stacked', path: '/catalog', roles: ['admin', 'user'] },
+    { name: 'Sales', icon: 'fa-money-bill-trend-up', path: '/sales', roles: ['admin', 'user'] },
+    { name: 'Expenses', icon: 'fa-receipt', path: '/expenses', roles: ['admin', 'user'] },
+    { name: 'Users', icon: 'fa-user-gear', path: '/users', roles: ['admin'] },
+    { name: 'Settings', icon: 'fa-gear', path: '/settings', roles: ['admin'] },
   ];
+
+  const filteredItems = navItems.filter(item => item.roles.includes(currentUser.role));
 
   const handleLinkClick = () => {
     setIsOpen(false);
@@ -45,7 +50,7 @@ const Sidebar: React.FC<Props> = ({ isOpen, setIsOpen, business }) => {
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight leading-none">Invoice ME</h1>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-400">Professional</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-400">Ledger v2.0</span>
             </div>
           </div>
           <button 
@@ -57,8 +62,8 @@ const Sidebar: React.FC<Props> = ({ isOpen, setIsOpen, business }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 space-y-1">
-          {navItems.map((item) => {
+        <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
+          {filteredItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link
@@ -84,24 +89,31 @@ const Sidebar: React.FC<Props> = ({ isOpen, setIsOpen, business }) => {
         </nav>
         
         {/* User / Business Profile Area */}
-        <div className="p-6 m-4 bg-slate-800/50 rounded-3xl border border-slate-700/50">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center font-black text-slate-300">
-              {business.name.charAt(0)}
+        <div className="p-6 m-4 bg-slate-800/50 rounded-3xl border border-slate-700/50 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center font-black">
+              {currentUser.name.charAt(0)}
             </div>
             <div className="min-w-0">
-               <p className="text-xs font-black text-white truncate">{business.name}</p>
-               <p className="text-[10px] font-medium text-slate-500 truncate">{business.email}</p>
+               <p className="text-xs font-black text-white truncate">{currentUser.name}</p>
+               <span className="text-[8px] px-2 py-0.5 bg-blue-600/20 text-blue-400 rounded-full font-black uppercase tracking-widest">{currentUser.role}</span>
             </div>
           </div>
-          <div className="flex flex-col gap-0.5 select-none pt-4 border-t border-slate-700/50">
-            <span className="text-[8px] uppercase font-black text-slate-600 tracking-widest">
-              Digital Signature:
-            </span>
-            <span className="text-[10px] font-black tracking-widest text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.4)]">
-              {business.poweredByText || 'SANDPIX MALDIVES'}
-            </span>
+          <div className="pt-4 border-t border-slate-700/50">
+            <button 
+              onClick={onLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-rose-400 hover:bg-rose-400/10 rounded-xl transition-all font-bold text-xs"
+            >
+              <i className="fa-solid fa-right-from-bracket"></i>
+              Logout
+            </button>
           </div>
+        </div>
+
+        {/* Sidebar Neon Footer */}
+        <div className="px-8 pb-8 text-center">
+            <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.3em] mb-1">Powered By</p>
+            <p className="text-[10px] font-black neon-text-blue uppercase tracking-widest italic">{business.poweredByText}</p>
         </div>
       </aside>
     </>

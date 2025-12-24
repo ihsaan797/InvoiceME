@@ -42,7 +42,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
     return docs.filter(d => 
       d.number.toLowerCase().includes(term) ||
       d.clientName.toLowerCase().includes(term) ||
-      d.clientEmail.toLowerCase().includes(term)
+      (d.clientEmail && d.clientEmail.toLowerCase().includes(term))
     );
   }, [state.documents, type, searchTerm]);
 
@@ -59,7 +59,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
     const term = clientSearchTerm.toLowerCase();
     return state.clients.filter(c => 
       c.name.toLowerCase().includes(term) || 
-      c.email.toLowerCase().includes(term)
+      (c.email && c.email.toLowerCase().includes(term))
     );
   }, [state.clients, clientSearchTerm]);
 
@@ -95,7 +95,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
   const handleEdit = (doc: Document) => {
     setFormData({
       clientName: doc.clientName,
-      clientEmail: doc.clientEmail,
+      clientEmail: doc.clientEmail || '',
       date: doc.date,
       dueDate: doc.dueDate,
       notes: doc.notes || '',
@@ -135,20 +135,20 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
     setFormData(prev => ({
       ...prev,
       clientName: client.name,
-      clientEmail: client.email
+      clientEmail: client.email || ''
     }));
     setShowClientModal(false);
     setClientSearchTerm('');
   };
 
   const handleSaveToPredefined = () => {
-    if (!formData.clientName.trim() || !formData.clientEmail.trim()) {
-      setSaveClientStatus({ type: 'error', message: 'Name and email are required.' });
+    if (!formData.clientName.trim()) {
+      setSaveClientStatus({ type: 'error', message: 'Name is required.' });
       return;
     }
     const isDuplicate = state.clients.some(c => 
       c.name.toLowerCase() === formData.clientName.toLowerCase() || 
-      c.email.toLowerCase() === formData.clientEmail.toLowerCase()
+      (formData.clientEmail.trim() !== '' && c.email?.toLowerCase() === formData.clientEmail.toLowerCase())
     );
     if (isDuplicate) {
       setSaveClientStatus({ type: 'error', message: 'Client already exists.' });
@@ -156,7 +156,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
       addClient({
         id: `manual-${Date.now()}`,
         name: formData.clientName,
-        email: formData.clientEmail,
+        email: formData.clientEmail || undefined,
         phone: '',
         address: ''
       });
@@ -182,12 +182,12 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingDocId) {
-      const existingDoc = state.documents.find(d => d.id === editingDocId);
+      const existingDoc = state.documents.find(d => String(d.id) === String(editingDocId));
       if (existingDoc) {
         const updatedDoc: Document = {
           ...existingDoc,
           clientName: formData.clientName,
-          clientEmail: formData.clientEmail,
+          clientEmail: formData.clientEmail || undefined,
           date: formData.date,
           dueDate: formData.dueDate,
           items: formData.items,
@@ -202,7 +202,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
         type,
         number: `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`,
         clientName: formData.clientName,
-        clientEmail: formData.clientEmail,
+        clientEmail: formData.clientEmail || undefined,
         date: formData.date,
         dueDate: formData.dueDate,
         items: formData.items,
@@ -345,7 +345,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
                 <div className="bg-slate-50 rounded-2xl p-4 mb-6 flex-1">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Client</p>
                   <p className="font-bold text-slate-800 truncate">{doc.clientName}</p>
-                  <p className="text-xs text-slate-500 truncate">{doc.clientEmail}</p>
+                  <p className="text-xs text-slate-500 truncate">{doc.clientEmail || 'No email provided'}</p>
                   
                   <div className="mt-4 pt-4 border-t border-slate-200 flex justify-between items-end">
                     <div>
@@ -381,7 +381,12 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
                         <i className="fa-solid fa-check"></i> Paid
                       </button>
                     )}
-                    <button onClick={() => { if(window.confirm('Delete this record?')) deleteDocument(doc.id); }} className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
+                    {type === DocumentType.QUOTATION && doc.status === 'Draft' && (
+                      <button onClick={() => updateStatus(doc.id, 'Sent')} className="flex-1 bg-blue-50 text-blue-700 py-2.5 rounded-xl font-bold text-xs hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 border border-blue-200">
+                        <i className="fa-solid fa-paper-plane"></i> Sent
+                      </button>
+                    )}
+                    <button onClick={() => { if(window.confirm('Are you sure you want to delete this document? This action cannot be undone.')) deleteDocument(doc.id); }} className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-transparent hover:border-rose-100">
                       <i className="fa-solid fa-trash-can"></i>
                     </button>
                   </div>
@@ -444,8 +449,8 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
                       <input required value={formData.clientName} onChange={(e) => setFormData({...formData, clientName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 text-sm font-medium" placeholder="Who is this for?" />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Email Address</label>
-                      <input required type="email" value={formData.clientEmail} onChange={(e) => setFormData({...formData, clientEmail: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 text-sm font-medium" placeholder="client@example.com" />
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Email Address (Optional)</label>
+                      <input type="email" value={formData.clientEmail} onChange={(e) => setFormData({...formData, clientEmail: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 text-sm font-medium" placeholder="client@example.com" />
                     </div>
                   </div>
                 </div>
@@ -618,7 +623,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
                 ) : filteredClients.map(c => (
                   <button key={c.id} type="button" onClick={() => handleSelectClient(c)} className="w-full text-left p-4 rounded-2xl hover:bg-emerald-50 border border-transparent hover:border-emerald-100 transition-all flex flex-col group">
                     <span className="font-bold text-slate-700 group-hover:text-emerald-700 transition-colors">{c.name}</span>
-                    <span className="text-xs text-slate-400">{c.email}</span>
+                    <span className="text-xs text-slate-400">{c.email || 'No email saved'}</span>
                   </button>
                 ))}
               </div>

@@ -8,6 +8,17 @@ export enum TransactionType {
   EXPENSE = 'EXPENSE'
 }
 
+export type UserRole = 'admin' | 'user';
+
+export interface User {
+  id: string;
+  username: string;
+  password?: string;
+  role: UserRole;
+  name: string;
+  isEnabled: boolean;
+}
+
 export interface BusinessDetails {
   name: string;
   email: string;
@@ -40,7 +51,7 @@ export interface CatalogItem {
 export interface Client {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   phone: string;
   address: string;
 }
@@ -52,7 +63,7 @@ export interface Document {
   date: string;
   dueDate: string;
   clientName: string;
-  clientEmail: string;
+  clientEmail?: string;
   items: LineItem[];
   status: 'Draft' | 'Sent' | 'Paid' | 'Expired';
   notes?: string;
@@ -74,4 +85,5 @@ export interface AppState {
   transactions: Transaction[];
   catalog: CatalogItem[];
   clients: Client[];
+  users: User[];
 }
