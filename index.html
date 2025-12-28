@@ -55,7 +55,7 @@
         }
     </style>
     <script>
-        // Process Shim for Gemini API
+        // Process Shim for Gemini API and local development
         window.process = window.process || { env: { API_KEY: "" } };
     </script>
 <script type="importmap">
@@ -68,16 +68,16 @@
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
     "jspdf": "https://esm.sh/jspdf@^3.0.4",
     "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.2",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0",
     "vite": "https://esm.sh/vite@^7.3.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
 <body>
     <div id="root"></div>
-    <!-- Vite will automatically resolve and transpile this file -->
+    <!-- Vite will automatically resolve, transpile, and bundle this file -->
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>
