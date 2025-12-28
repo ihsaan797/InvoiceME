@@ -69,7 +69,6 @@ const UserManager: React.FC<Props> = ({ state, addUser, updateUser, deleteUser }
     setIsSubmitting(true);
     
     try {
-        // Duplicate Username Check (excluding current user if editing)
         const isDuplicate = state.users.some(u => 
           String(u.id) !== String(editingId) && 
           u.username.toLowerCase() === formData.username.toLowerCase()
@@ -88,11 +87,13 @@ const UserManager: React.FC<Props> = ({ state, addUser, updateUser, deleteUser }
           });
           if (success) resetForm();
         } else {
+          // Destructure isEnabled to avoid duplicate key in the insert payload
+          const { isEnabled, ...rest } = formData;
           const success = await addUser({
             id: `temp-${Date.now()}`,
-            isEnabled: true,
-            ...formData
-          });
+            ...rest,
+            isEnabled: isEnabled ?? true
+          } as User);
           if (success) resetForm();
         }
     } catch (err: any) {

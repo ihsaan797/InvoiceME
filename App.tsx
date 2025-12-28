@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Sidebar from './components/Sidebar.tsx';
-import Dashboard from './components/Dashboard.tsx';
-import DocumentManager from './components/DocumentManager.tsx';
-import TransactionManager from './components/TransactionManager.tsx';
-import CatalogManager from './components/CatalogManager.tsx';
-import ClientManager from './components/ClientManager.tsx';
-import Settings from './components/Settings.tsx';
-import UserManager from './components/UserManager.tsx';
-import Login from './components/Login.tsx';
-import { AppState, DocumentType, TransactionType, Document, Transaction, CatalogItem, Client, BusinessDetails, User } from './types.ts';
-import { supabase } from './lib/supabase.ts';
+import Sidebar from './components/Sidebar';
+import Dashboard from './components/Dashboard';
+import DocumentManager from './components/DocumentManager';
+import TransactionManager from './components/TransactionManager';
+import CatalogManager from './components/CatalogManager';
+import ClientManager from './components/ClientManager';
+import Settings from './components/Settings';
+import UserManager from './components/UserManager';
+import Login from './components/Login';
+import { AppState, DocumentType, TransactionType, Document, Transaction, CatalogItem, Client, BusinessDetails, User } from './types';
+import { supabase } from './lib/supabase';
 
 const INITIAL_STATE: AppState = {
   business: {
@@ -40,7 +40,6 @@ const App: React.FC = () => {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Initial Data Fetch from Supabase
   useEffect(() => {
     const fetchAllData = async () => {
       setIsLoading(true);
@@ -68,7 +67,6 @@ const App: React.FC = () => {
            if (inserted) activeBusiness = { ...INITIAL_STATE.business, ...inserted };
         }
 
-        // Initialize default admin if no users exist
         let allUsers = (usersData || []) as User[];
         if (allUsers.length === 0) {
           const defaultAdmin = { username: 'Ihsaan', password: 'password123', role: 'admin' as const, name: 'Ihsaan', isEnabled: true };
@@ -85,7 +83,6 @@ const App: React.FC = () => {
           users: allUsers.map(u => ({ ...u, id: String(u.id), isEnabled: u.isEnabled ?? true }))
         });
 
-        // Check session
         const savedUser = sessionStorage.getItem('ledger_user');
         if (savedUser) {
           setCurrentUser(JSON.parse(savedUser));
@@ -299,16 +296,12 @@ const App: React.FC = () => {
 
   const deleteUser = async (id: string) => {
     try {
-      // Robust deletion from state first for immediate UI feedback
       setState(prev => ({ ...prev, users: prev.users.filter(u => String(u.id) !== String(id)) }));
-      
-      // Ensure the ID is correctly parsed for the DB query if it's an integer column
       const dbId = isNaN(Number(id)) ? id : Number(id);
       const { error } = await supabase.from('users').delete().eq('id', dbId);
       
       if (error) {
         console.error("Supabase deletion error:", error);
-        // Re-fetch users if deletion failed to restore state
         const { data } = await supabase.from('users').select('*').order('created_at', { ascending: false });
         if (data) {
             setState(prev => ({ ...prev, users: data.map(u => ({ ...u, id: String(u.id) })) }));
