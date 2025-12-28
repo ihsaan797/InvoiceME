@@ -2,6 +2,47 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Document, BusinessDetails } from '../types';
 
+/**
+ * Helper to render basic markdown (bold/italic) in jsPDF
+ * Recognizes **bold** and *italic*
+ */
+const renderStyledText = (pdf: jsPDF, text: string, x: number, y: number, maxWidth: number, fontSize: number, defaultColor: [number, number, number]): number => {
+  const lineHeight = fontSize * 0.45;
+  const lines = pdf.splitTextToSize(text, maxWidth);
+  let currentY = y;
+
+  lines.forEach((line: string) => {
+    // Basic regex to find markdown segments
+    // We split by segments of bold, italic, or plain
+    const parts = line.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+    let currentX = x;
+
+    parts.forEach((part) => {
+      if (!part) return;
+
+      if (part.startsWith('**') && part.endsWith('**')) {
+        pdf.setFont('helvetica', 'bold');
+        const content = part.slice(2, -2);
+        pdf.text(content, currentX, currentY);
+        currentX += pdf.getTextWidth(content);
+      } else if (part.startsWith('*') && part.endsWith('*')) {
+        pdf.setFont('helvetica', 'italic');
+        const content = part.slice(1, -1);
+        pdf.text(content, currentX, currentY);
+        currentX += pdf.getTextWidth(content);
+      } else {
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(part, currentX, currentY);
+        currentX += pdf.getTextWidth(part);
+      }
+    });
+
+    currentY += lineHeight;
+  });
+
+  return currentY;
+};
+
 export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: boolean = false) => {
   const pdf = new jsPDF();
   const margin = 20;
@@ -205,45 +246,40 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
 
   let footerContentY = summaryY + 45;
 
+  // Render Notes with basic markdown support
   if (doc.notes) {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
     pdf.setTextColor(...secondaryColor);
-    pdf.text('NOTES & TERMS', margin, footerContentY);
+    pdf.text('TERMS AND CONDITIONS', margin, footerContentY);
     
-    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8);
     pdf.setTextColor(...lightGray);
-    const splitNotes = pdf.splitTextToSize(doc.notes, pageWidth - (2 * margin));
-    pdf.text(splitNotes, margin, footerContentY + 5);
-    footerContentY += (splitNotes.length * 4) + 12;
+    footerContentY = renderStyledText(pdf, doc.notes, margin, footerContentY + 5, pageWidth - (2 * margin), 8, lightGray) + 5;
   }
 
+  // Render Payment Details with basic markdown support
   if (business.paymentDetails) {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
     pdf.setTextColor(...secondaryColor);
     pdf.text('PAYMENT DETAILS', margin, footerContentY);
     
-    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8);
     pdf.setTextColor(...lightGray);
-    const splitPayment = pdf.splitTextToSize(business.paymentDetails, pageWidth - (2 * margin));
-    pdf.text(splitPayment, margin, footerContentY + 5);
+    footerContentY = renderStyledText(pdf, business.paymentDetails, margin, footerContentY + 5, pageWidth - (2 * margin), 8, lightGray);
   }
 
-  // 9. MODERN WAVE PATTERN FOOTER (FIXED)
+  // 9. MODERN WAVE PATTERN FOOTER
   pdf.saveGraphicsState();
   const GState = (pdf as any).GState;
   
-  // Set transparency to 25% for primary wave
   if (GState) {
     pdf.setGState(new GState({ opacity: 0.25 }));
   }
   
   pdf.setFillColor(...lightBlue);
   
-  // Primary Wave
   pdf.lines(
     [
       [0, -15],
@@ -256,7 +292,6 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
     true
   );
 
-  // Secondary overlapping wave for depth (15% opacity)
   if (GState) {
     pdf.setGState(new GState({ opacity: 0.15 }));
   }

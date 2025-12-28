@@ -21,6 +21,8 @@ const Settings: React.FC<Props> = ({ business, updateBusiness }) => {
   const [isSaved, setIsSaved] = useState(false);
   const [isGeneratingTerms, setIsGeneratingTerms] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const paymentRef = useRef<HTMLTextAreaElement>(null);
+  const termsRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +52,30 @@ const Settings: React.FC<Props> = ({ business, updateBusiness }) => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleFormat = (field: 'paymentDetails' | 'defaultTerms', type: 'bold' | 'italic' | 'list') => {
+    const ref = field === 'paymentDetails' ? paymentRef : termsRef;
+    if (!ref.current) return;
+
+    const start = ref.current.selectionStart;
+    const end = ref.current.selectionEnd;
+    const text = details[field] || '';
+    const selected = text.substring(start, end);
+
+    let formatted = '';
+    if (type === 'bold') formatted = `**${selected || 'bold text'}**`;
+    else if (type === 'italic') formatted = `*${selected || 'italic text'}*`;
+    else if (type === 'list') formatted = `\n- ${selected || 'list item'}`;
+
+    const newVal = text.substring(0, start) + formatted + text.substring(end);
+    setDetails({ ...details, [field]: newVal });
+
+    // Refocus after state update
+    setTimeout(() => {
+      ref.current?.focus();
+      ref.current?.setSelectionRange(start + 2, start + 2 + (selected.length || formatted.length - 4));
+    }, 0);
+  };
+
   const handleGenerateTerms = async () => {
     setIsGeneratingTerms(true);
     try {
@@ -60,7 +86,7 @@ const Settings: React.FC<Props> = ({ business, updateBusiness }) => {
       2. Quote validity period.
       3. Brief note on cancellations or returns.
       4. Late payment interest note.
-      Keep it under 150 words and sounding very professional.`;
+      Keep it under 150 words and sounding very professional. Use **bold** for key terms.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -77,6 +103,20 @@ const Settings: React.FC<Props> = ({ business, updateBusiness }) => {
       setIsGeneratingTerms(false);
     }
   };
+
+  const FormatToolbar = ({ field }: { field: 'paymentDetails' | 'defaultTerms' }) => (
+    <div className="flex gap-2 mb-2">
+      <button type="button" onClick={() => handleFormat(field, 'bold')} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" title="Bold">
+        <i className="fa-solid fa-bold text-xs"></i>
+      </button>
+      <button type="button" onClick={() => handleFormat(field, 'italic')} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" title="Italic">
+        <i className="fa-solid fa-italic text-xs"></i>
+      </button>
+      <button type="button" onClick={() => handleFormat(field, 'list')} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" title="List Item">
+        <i className="fa-solid fa-list-ul text-xs"></i>
+      </button>
+    </div>
+  );
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 md:space-y-8 animate-fadeIn pb-12">
@@ -265,7 +305,9 @@ const Settings: React.FC<Props> = ({ business, updateBusiness }) => {
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Payment Details (Bank Info)</label>
+                <FormatToolbar field="paymentDetails" />
                 <textarea 
+                    ref={paymentRef}
                     value={details.paymentDetails}
                     onChange={(e) => setDetails({...details, paymentDetails: e.target.value})}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm min-h-[80px]"
@@ -285,7 +327,9 @@ const Settings: React.FC<Props> = ({ business, updateBusiness }) => {
                         {isGeneratingTerms ? 'Processing...' : 'AI Suggest Terms'}
                     </button>
                 </div>
+                <FormatToolbar field="defaultTerms" />
                 <textarea 
+                    ref={termsRef}
                     value={details.defaultTerms}
                     onChange={(e) => setDetails({...details, defaultTerms: e.target.value})}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm min-h-[120px]"

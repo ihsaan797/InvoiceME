@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { AppState, Document, DocumentType, LineItem, CatalogItem, Client } from '../types';
 import { generatePDF } from '../utils/pdfGenerator';
@@ -25,6 +25,8 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
   const [searchTerm, setSearchTerm] = useState('');
   const [saveClientStatus, setSaveClientStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+
   const [formData, setFormData] = useState({
     clientName: '',
     clientEmail: '',
@@ -139,6 +141,27 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
     }));
     setShowClientModal(false);
     setClientSearchTerm('');
+  };
+
+  const handleFormat = (type: 'bold' | 'italic' | 'list') => {
+    if (!notesRef.current) return;
+    const start = notesRef.current.selectionStart;
+    const end = notesRef.current.selectionEnd;
+    const text = formData.notes || '';
+    const selected = text.substring(start, end);
+
+    let formatted = '';
+    if (type === 'bold') formatted = `**${selected || 'bold text'}**`;
+    else if (type === 'italic') formatted = `*${selected || 'italic text'}*`;
+    else if (type === 'list') formatted = `\n- ${selected || 'list item'}`;
+
+    const newVal = text.substring(0, start) + formatted + text.substring(end);
+    setFormData({ ...formData, notes: newVal });
+
+    setTimeout(() => {
+      notesRef.current?.focus();
+      notesRef.current?.setSelectionRange(start + 2, start + 2 + (selected.length || formatted.length - 4));
+    }, 0);
   };
 
   const handleSaveToPredefined = () => {
@@ -526,8 +549,21 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 pt-4 pb-10">
                 <div className="lg:col-span-3 space-y-6">
                   <div>
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest border-l-4 border-blue-600 pl-3 mb-4">Terms & Notes</h3>
-                    <textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm font-medium min-h-[160px] resize-none transition-all" placeholder="Enter standard terms, bank details, or specific notes for this client..." />
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                        <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest border-l-4 border-blue-600 pl-3">Terms and Conditions</h3>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => handleFormat('bold')} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" title="Bold">
+                            <i className="fa-solid fa-bold text-xs"></i>
+                          </button>
+                          <button type="button" onClick={() => handleFormat('italic')} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" title="Italic">
+                            <i className="fa-solid fa-italic text-xs"></i>
+                          </button>
+                          <button type="button" onClick={() => handleFormat('list')} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" title="List Item">
+                            <i className="fa-solid fa-list-ul text-xs"></i>
+                          </button>
+                        </div>
+                    </div>
+                    <textarea ref={notesRef} value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm font-medium min-h-[160px] resize-none transition-all" placeholder="Enter standard terms, bank details, or specific notes for this client..." />
                   </div>
                 </div>
                 
