@@ -210,7 +210,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
         const updatedDoc: Document = {
           ...existingDoc,
           clientName: formData.clientName,
-          clientEmail: formData.clientEmail || undefined,
+          clientEmail: formData.clientEmail || '',
           date: formData.date,
           dueDate: formData.dueDate,
           items: formData.items,
@@ -225,7 +225,7 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
         type,
         number: `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`,
         clientName: formData.clientName,
-        clientEmail: formData.clientEmail || undefined,
+        clientEmail: formData.clientEmail || '',
         date: formData.date,
         dueDate: formData.dueDate,
         items: formData.items,

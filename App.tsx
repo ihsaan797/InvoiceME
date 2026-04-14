@@ -122,11 +122,18 @@ const App: React.FC = () => {
     const tempId = doc.id;
     setState(prev => ({ ...prev, documents: [doc, ...prev.documents] }));
     try {
-        // Exclude id to let Supabase generate a UUID
-        const { id, ...docData } = doc;
-        const { data, error } = await supabase.from('documents').insert(docData).select().single();
+        // Ensure optional fields are not null/undefined
+        const sanitizedDoc = {
+            ...doc,
+            clientEmail: doc.clientEmail || '',
+            notes: doc.notes || ''
+        };
+        const { data, error } = await supabase.from('documents').insert(sanitizedDoc).select().single();
         
-        if (error) throw error;
+        if (error) {
+            console.error("Supabase Insert Error (Documents):", error.message, error.details, error.hint);
+            throw error;
+        }
         
         if (data) {
             setState(prev => ({
@@ -136,7 +143,6 @@ const App: React.FC = () => {
         }
     } catch (err) {
         console.error("Add document failed:", err);
-        // Optionally remove the temp doc or mark as failed
     }
   };
 
@@ -149,7 +155,13 @@ const App: React.FC = () => {
     try {
         // Exclude id and created_at from update payload
         const { id, created_at, ...updateData } = doc as any;
-        const { error } = await supabase.from('documents').update(updateData).eq('id', id);
+        // Sanitize
+        const sanitizedData = {
+            ...updateData,
+            clientEmail: updateData.clientEmail || '',
+            notes: updateData.notes || ''
+        };
+        const { error } = await supabase.from('documents').update(sanitizedData).eq('id', id);
         if (error) throw error;
     } catch (err) {
         console.error("Update document failed:", err);
@@ -211,9 +223,15 @@ const App: React.FC = () => {
     const tempId = tx.id;
     setState(prev => ({ ...prev, transactions: [tx, ...prev.transactions] }));
     try {
-        const { id, ...txData } = tx;
-        const { data, error } = await supabase.from('transactions').insert(txData).select().single();
-        if (error) throw error;
+        const sanitizedTx = {
+            ...tx,
+            reference: tx.reference || ''
+        };
+        const { data, error } = await supabase.from('transactions').insert(sanitizedTx).select().single();
+        if (error) {
+            console.error("Supabase Insert Error (Transactions):", error.message, error.details, error.hint);
+            throw error;
+        }
         if (data) {
             setState(prev => ({
                 ...prev,
@@ -239,9 +257,11 @@ const App: React.FC = () => {
     const tempId = item.id;
     setState(prev => ({ ...prev, catalog: [item, ...prev.catalog] }));
     try {
-        const { id, ...itemData } = item;
-        const { data, error } = await supabase.from('catalog_items').insert(itemData).select().single();
-        if (error) throw error;
+        const { data, error } = await supabase.from('catalog_items').insert(item).select().single();
+        if (error) {
+            console.error("Supabase Insert Error (Catalog):", error.message, error.details, error.hint);
+            throw error;
+        }
         if (data) {
             setState(prev => ({
                 ...prev,
@@ -281,9 +301,17 @@ const App: React.FC = () => {
     const tempId = client.id;
     setState(prev => ({ ...prev, clients: [client, ...prev.clients] }));
     try {
-        const { id, ...clientData } = client;
-        const { data, error } = await supabase.from('clients').insert(clientData).select().single();
-        if (error) throw error;
+        const sanitizedClient = {
+            ...client,
+            email: client.email || '',
+            phone: client.phone || '',
+            address: client.address || ''
+        };
+        const { data, error } = await supabase.from('clients').insert(sanitizedClient).select().single();
+        if (error) {
+            console.error("Supabase Insert Error (Client):", error.message, error.details, error.hint);
+            throw error;
+        }
         if (data) {
             setState(prev => ({
                 ...prev,
@@ -298,9 +326,17 @@ const App: React.FC = () => {
   const addClients = async (newClients: Client[]) => {
     setState(prev => ({ ...prev, clients: [...newClients, ...prev.clients] }));
     try {
-        const formattedClients = newClients.map(({id, ...rest}) => rest);
-        const { error } = await supabase.from('clients').insert(formattedClients);
-        if (error) throw error;
+        const sanitizedClients = newClients.map(c => ({
+            ...c,
+            email: c.email || '',
+            phone: c.phone || '',
+            address: c.address || ''
+        }));
+        const { error } = await supabase.from('clients').insert(sanitizedClients);
+        if (error) {
+            console.error("Supabase Bulk Insert Error (Clients):", error.message, error.details, error.hint);
+            throw error;
+        }
     } catch (err) {
         console.error("Add clients failed:", err);
     }
@@ -313,7 +349,13 @@ const App: React.FC = () => {
     }));
     try {
         const { id, created_at, ...updateData } = client as any;
-        const { error } = await supabase.from('clients').update(updateData).eq('id', id);
+        const sanitizedData = {
+            ...updateData,
+            email: updateData.email || '',
+            phone: updateData.phone || '',
+            address: updateData.address || ''
+        };
+        const { error } = await supabase.from('clients').update(sanitizedData).eq('id', id);
         if (error) throw error;
     } catch (err) {
         console.error("Update client failed:", err);

@@ -68,9 +68,9 @@ const ClientManager: React.FC<Props> = ({ state, addClient, addClients, updateCl
     }
 
     if (editingId) {
-      updateClient({ id: editingId, ...formData });
+      updateClient({ id: editingId, ...formData, email: formData.email || '' });
     } else {
-      addClient({ id: Date.now().toString(), ...formData });
+      addClient({ id: Date.now().toString(), ...formData, email: formData.email || '' });
     }
     resetForm();
   };
