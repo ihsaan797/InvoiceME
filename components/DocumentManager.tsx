@@ -392,11 +392,11 @@ const DocumentManager: React.FC<Props> = ({ type, state, addDocument, updateDocu
                   <button onClick={() => handleEdit(doc)} className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-xl font-bold text-xs hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
                     <i className="fa-solid fa-pencil"></i> Edit
                   </button>
-                  <button onClick={() => generatePDF(doc, state.business, true)} className="flex-1 bg-blue-50 text-blue-600 py-2.5 rounded-xl font-bold text-xs hover:bg-blue-100 transition-colors flex items-center justify-center gap-2">
+                  <button onClick={async () => await generatePDF(doc, state.business, true)} className="flex-1 bg-blue-50 text-blue-600 py-2.5 rounded-xl font-bold text-xs hover:bg-blue-100 transition-colors flex items-center justify-center gap-2">
                     <i className="fa-solid fa-eye"></i> View
                   </button>
                   <div className="w-full flex gap-2">
-                    <button onClick={() => generatePDF(doc, state.business, false)} className="flex-1 bg-slate-900 text-white py-2.5 rounded-xl font-bold text-xs hover:bg-black transition-colors flex items-center justify-center gap-2 shadow-lg shadow-slate-200">
+                    <button onClick={async () => await generatePDF(doc, state.business, false)} className="flex-1 bg-slate-900 text-white py-2.5 rounded-xl font-bold text-xs hover:bg-black transition-colors flex items-center justify-center gap-2 shadow-lg shadow-slate-200">
                       <i className="fa-solid fa-download"></i> PDF
                     </button>
                     {type === DocumentType.INVOICE && doc.status !== 'Paid' && (

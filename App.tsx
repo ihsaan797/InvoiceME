@@ -111,9 +111,10 @@ const App: React.FC = () => {
   const updateBusiness = async (business: BusinessDetails) => {
     setState(prev => ({ ...prev, business }));
     try {
-        await supabase.from('business_settings').upsert({ id: 1, ...business });
+        const { error } = await supabase.from('business_settings').upsert({ id: 1, ...business });
+        if (error) throw error;
     } catch (err) {
-        console.error("Critical Sync Error:", err);
+        console.error("Critical Sync Error (Business):", err);
     }
   };
 
@@ -121,8 +122,12 @@ const App: React.FC = () => {
     const tempId = doc.id;
     setState(prev => ({ ...prev, documents: [doc, ...prev.documents] }));
     try {
+        // Exclude id to let Supabase generate a UUID
         const { id, ...docData } = doc;
-        const { data } = await supabase.from('documents').insert(docData).select().single();
+        const { data, error } = await supabase.from('documents').insert(docData).select().single();
+        
+        if (error) throw error;
+        
         if (data) {
             setState(prev => ({
                 ...prev,
@@ -131,6 +136,7 @@ const App: React.FC = () => {
         }
     } catch (err) {
         console.error("Add document failed:", err);
+        // Optionally remove the temp doc or mark as failed
     }
   };
 
@@ -139,7 +145,15 @@ const App: React.FC = () => {
       ...prev,
       documents: prev.documents.map(d => String(d.id) === String(doc.id) ? doc : d)
     }));
-    await supabase.from('documents').update(doc).eq('id', doc.id);
+    
+    try {
+        // Exclude id and created_at from update payload
+        const { id, created_at, ...updateData } = doc as any;
+        const { error } = await supabase.from('documents').update(updateData).eq('id', id);
+        if (error) throw error;
+    } catch (err) {
+        console.error("Update document failed:", err);
+    }
   };
 
   const updateDocumentStatus = async (id: string, status: 'Draft' | 'Sent' | 'Paid' | 'Expired') => {
@@ -169,46 +183,73 @@ const App: React.FC = () => {
           transactions: newTransaction ? [newTransaction, ...prev.transactions] : prev.transactions
       }));
 
-      await supabase.from('documents').update({ status }).eq('id', id);
-      if (newTransaction) {
-          const { id: txId, ...txData } = newTransaction;
-          await supabase.from('transactions').insert(txData);
+      try {
+          const { error: docError } = await supabase.from('documents').update({ status }).eq('id', id);
+          if (docError) throw docError;
+
+          if (newTransaction) {
+              const { id: txId, ...txData } = newTransaction;
+              const { error: txError } = await supabase.from('transactions').insert(txData);
+              if (txError) throw txError;
+          }
+      } catch (err) {
+          console.error("Update status failed:", err);
       }
   };
 
   const deleteDocument = async (id: string) => {
     setState(prev => ({ ...prev, documents: prev.documents.filter(d => String(d.id) !== String(id)) }));
-    await supabase.from('documents').delete().eq('id', id);
+    try {
+        const { error } = await supabase.from('documents').delete().eq('id', id);
+        if (error) throw error;
+    } catch (err) {
+        console.error("Delete document failed:", err);
+    }
   };
 
   const addTransaction = async (tx: Transaction) => {
     const tempId = tx.id;
     setState(prev => ({ ...prev, transactions: [tx, ...prev.transactions] }));
-    const { id, ...txData } = tx;
-    const { data } = await supabase.from('transactions').insert(txData).select().single();
-    if (data) {
-        setState(prev => ({
-            ...prev,
-            transactions: prev.transactions.map(t => String(t.id) === String(tempId) ? { ...data, id: String(data.id) } : t)
-        }));
+    try {
+        const { id, ...txData } = tx;
+        const { data, error } = await supabase.from('transactions').insert(txData).select().single();
+        if (error) throw error;
+        if (data) {
+            setState(prev => ({
+                ...prev,
+                transactions: prev.transactions.map(t => String(t.id) === String(tempId) ? { ...data, id: String(data.id) } : t)
+            }));
+        }
+    } catch (err) {
+        console.error("Add transaction failed:", err);
     }
   };
 
   const deleteTransaction = async (id: string) => {
     setState(prev => ({ ...prev, transactions: prev.transactions.filter(t => String(t.id) !== String(id)) }));
-    await supabase.from('transactions').delete().eq('id', id);
+    try {
+        const { error } = await supabase.from('transactions').delete().eq('id', id);
+        if (error) throw error;
+    } catch (err) {
+        console.error("Delete transaction failed:", err);
+    }
   };
 
   const addCatalogItem = async (item: CatalogItem) => {
     const tempId = item.id;
     setState(prev => ({ ...prev, catalog: [item, ...prev.catalog] }));
-    const { id, ...itemData } = item;
-    const { data } = await supabase.from('catalog_items').insert(itemData).select().single();
-    if (data) {
-        setState(prev => ({
-            ...prev,
-            catalog: prev.catalog.map(i => String(i.id) === String(tempId) ? { ...data, id: String(data.id) } : i)
-        }));
+    try {
+        const { id, ...itemData } = item;
+        const { data, error } = await supabase.from('catalog_items').insert(itemData).select().single();
+        if (error) throw error;
+        if (data) {
+            setState(prev => ({
+                ...prev,
+                catalog: prev.catalog.map(i => String(i.id) === String(tempId) ? { ...data, id: String(data.id) } : i)
+            }));
+        }
+    } catch (err) {
+        console.error("Add catalog item failed:", err);
     }
   };
 
@@ -217,31 +258,52 @@ const App: React.FC = () => {
       ...prev,
       catalog: prev.catalog.map(i => String(i.id) === String(item.id) ? item : i)
     }));
-    await supabase.from('catalog_items').update(item).eq('id', item.id);
+    try {
+        const { id, created_at, ...updateData } = item as any;
+        const { error } = await supabase.from('catalog_items').update(updateData).eq('id', id);
+        if (error) throw error;
+    } catch (err) {
+        console.error("Update catalog item failed:", err);
+    }
   };
 
   const deleteCatalogItem = async (id: string) => {
     setState(prev => ({ ...prev, catalog: prev.catalog.filter(i => String(i.id) !== String(id)) }));
-    await supabase.from('catalog_items').delete().eq('id', id);
+    try {
+        const { error } = await supabase.from('catalog_items').delete().eq('id', id);
+        if (error) throw error;
+    } catch (err) {
+        console.error("Delete catalog item failed:", err);
+    }
   };
 
   const addClient = async (client: Client) => {
     const tempId = client.id;
     setState(prev => ({ ...prev, clients: [client, ...prev.clients] }));
-    const { id, ...clientData } = client;
-    const { data } = await supabase.from('clients').insert(clientData).select().single();
-    if (data) {
-        setState(prev => ({
-            ...prev,
-            clients: prev.clients.map(c => String(c.id) === String(tempId) ? { ...data, id: String(data.id) } : c)
-        }));
+    try {
+        const { id, ...clientData } = client;
+        const { data, error } = await supabase.from('clients').insert(clientData).select().single();
+        if (error) throw error;
+        if (data) {
+            setState(prev => ({
+                ...prev,
+                clients: prev.clients.map(c => String(c.id) === String(tempId) ? { ...data, id: String(data.id) } : c)
+            }));
+        }
+    } catch (err) {
+        console.error("Add client failed:", err);
     }
   };
 
   const addClients = async (newClients: Client[]) => {
     setState(prev => ({ ...prev, clients: [...newClients, ...prev.clients] }));
-    const formattedClients = newClients.map(({id, ...rest}) => rest);
-    await supabase.from('clients').insert(formattedClients);
+    try {
+        const formattedClients = newClients.map(({id, ...rest}) => rest);
+        const { error } = await supabase.from('clients').insert(formattedClients);
+        if (error) throw error;
+    } catch (err) {
+        console.error("Add clients failed:", err);
+    }
   };
 
   const updateClient = async (client: Client) => {
@@ -249,12 +311,23 @@ const App: React.FC = () => {
       ...prev,
       clients: prev.clients.map(c => String(c.id) === String(client.id) ? client : c)
     }));
-    await supabase.from('clients').update(client).eq('id', client.id);
+    try {
+        const { id, created_at, ...updateData } = client as any;
+        const { error } = await supabase.from('clients').update(updateData).eq('id', id);
+        if (error) throw error;
+    } catch (err) {
+        console.error("Update client failed:", err);
+    }
   };
 
   const deleteClient = async (id: string) => {
     setState(prev => ({ ...prev, clients: prev.clients.filter(c => String(c.id) !== String(id)) }));
-    await supabase.from('clients').delete().eq('id', id);
+    try {
+        const { error } = await supabase.from('clients').delete().eq('id', id);
+        if (error) throw error;
+    } catch (err) {
+        console.error("Delete client failed:", err);
+    }
   };
 
   const addUser = async (user: User) => {
@@ -278,7 +351,7 @@ const App: React.FC = () => {
 
   const updateUser = async (user: User) => {
     try {
-      const { id, ...userData } = user;
+      const { id, created_at, ...userData } = user as any;
       const { error } = await supabase.from('users').update(userData).eq('id', id);
       
       if (error) throw error;

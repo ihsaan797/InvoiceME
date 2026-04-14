@@ -43,7 +43,32 @@ const renderStyledText = (pdf: jsPDF, text: string, x: number, y: number, maxWid
   return currentY;
 };
 
-export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: boolean = false) => {
+/**
+ * Normalizes an image URL/DataURL to an HTMLCanvasElement that jsPDF can reliably handle.
+ */
+const normalizeImage = (url: string): Promise<{ canvas: HTMLCanvasElement, width: number, height: number }> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas context failed');
+        ctx.drawImage(img, 0, 0);
+        resolve({ canvas, width: img.width, height: img.height });
+      } catch (e) {
+        reject(e);
+      }
+    };
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = url;
+  });
+};
+
+export const generatePDF = async (doc: Document, business: BusinessDetails, viewMode: boolean = false) => {
   const pdf = new jsPDF();
   const margin = 20;
   const pageWidth = pdf.internal.pageSize.width;
@@ -66,29 +91,33 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
   pdf.rect(0, 0, pageWidth, 2, 'F');
 
   let currentY = margin;
+  let logoHeight = 0;
 
   // 2. Logo (Top Left)
   if (business.logoUrl) {
     try {
-      const imgProps = pdf.getImageProperties(business.logoUrl);
-      const maxWidth = 45;
-      const maxHeight = 20;
+      const normalized = await normalizeImage(business.logoUrl);
       
-      const widthRatio = maxWidth / imgProps.width;
-      const heightRatio = maxHeight / imgProps.height;
-      const ratio = Math.min(widthRatio, heightRatio);
-      
-      const finalWidth = imgProps.width * ratio;
-      const finalHeight = imgProps.height * ratio;
+      const maxWidth = 50;
+      const maxHeight = 25;
+      const ratio = Math.min(maxWidth / normalized.width, maxHeight / normalized.height);
+      const finalWidth = normalized.width * ratio;
+      const finalHeight = normalized.height * ratio;
 
-      pdf.addImage(business.logoUrl, 'PNG', margin, currentY, finalWidth, finalHeight, undefined, 'FAST');
-      currentY += finalHeight + 5; 
+      pdf.addImage(
+        normalized.canvas, 
+        'PNG', 
+        margin, 
+        margin, 
+        finalWidth, 
+        finalHeight, 
+        undefined, 
+        'FAST'
+      );
+      logoHeight = finalHeight;
     } catch (e) {
-      console.error("Failed to add logo to PDF", e);
-      currentY += 10;
+      console.error("PDF Logo Normalization/Rendering Error:", e);
     }
-  } else {
-    currentY += 10;
   }
 
   // 3. Header Section - Metadata (Right)
@@ -96,34 +125,37 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(28);
   pdf.setTextColor(...accentColor);
-  const metaY = Math.max(margin, currentY - 20); 
-  pdf.text(doc.type.toUpperCase(), rightAlignX, metaY + 5, { align: 'right' });
+  // Place document type at the top right, aligned with logo
+  pdf.text(doc.type.toUpperCase(), rightAlignX, margin + 8, { align: 'right' });
   
   pdf.setFontSize(10);
   pdf.setTextColor(...secondaryColor);
-  pdf.text(`NO: ${doc.number}`, rightAlignX, metaY + 12, { align: 'right' });
+  pdf.text(`NO: ${doc.number}`, rightAlignX, margin + 15, { align: 'right' });
   
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   pdf.setTextColor(...lightGray);
-  pdf.text(`Issue Date: ${formatDateDisplay(doc.date)}`, rightAlignX, metaY + 18, { align: 'right' });
-  pdf.text(`Due Date: ${formatDateDisplay(doc.dueDate)}`, rightAlignX, metaY + 23, { align: 'right' });
+  pdf.text(`Issue Date: ${formatDateDisplay(doc.date)}`, rightAlignX, margin + 21, { align: 'right' });
+  pdf.text(`Due Date: ${formatDateDisplay(doc.dueDate)}`, rightAlignX, margin + 26, { align: 'right' });
+
+  // Update currentY to be below the logo and metadata
+  currentY = margin + Math.max(logoHeight, 25) + 10;
 
   // 4. Header Section - Business Info (Left)
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(18);
   pdf.setTextColor(...secondaryColor);
-  pdf.text(business.name.toUpperCase(), margin, currentY + 5);
+  pdf.text(business.name.toUpperCase(), margin, currentY);
   
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   pdf.setTextColor(...lightGray);
   
   const addressLines = pdf.splitTextToSize(business.address, 75);
-  pdf.text(addressLines, margin, currentY + 12);
+  pdf.text(addressLines, margin, currentY + 7);
   
   const addressHeight = addressLines.length * 5;
-  const contactY = currentY + 12 + addressHeight;
+  const contactY = currentY + 7 + addressHeight;
   
   pdf.text(`Email: ${business.email}`, margin, contactY);
   pdf.text(`Phone: ${business.phone}`, margin, contactY + 5);
@@ -131,9 +163,7 @@ export const generatePDF = (doc: Document, business: BusinessDetails, viewMode: 
   pdf.setTextColor(...secondaryColor);
   pdf.text(`TIN: ${business.tinNumber}`, margin, contactY + 10);
 
-  const headerEndRight = metaY + 30;
-  const headerEndLeft = contactY + 10;
-  currentY = Math.max(headerEndRight, headerEndLeft) + 10;
+  currentY = contactY + 15;
 
   pdf.setDrawColor(241, 245, 249); 
   pdf.line(margin, currentY, pageWidth - margin, currentY);
